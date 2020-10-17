@@ -65,6 +65,14 @@ struct Vector2 {
 	real_t length() const;
 	real_t length_squared() const;
 
+	Vector2 min(const Vector2 &p_vector2) const {
+		return Vector2(MIN(x, p_vector2.x), MIN(y, p_vector2.y));
+	}
+
+	Vector2 max(const Vector2 &p_vector2) const {
+		return Vector2(MAX(x, p_vector2.x), MAX(y, p_vector2.y));
+	}
+
 	real_t distance_to(const Vector2 &p_vector2) const;
 	real_t distance_squared_to(const Vector2 &p_vector2) const;
 	real_t angle_to(const Vector2 &p_vector2) const;
@@ -150,7 +158,19 @@ _FORCE_INLINE_ Vector2 Vector2::plane_project(real_t p_d, const Vector2 &p_vec) 
 	return p_vec - *this * (dot(p_vec) - p_d);
 }
 
-_FORCE_INLINE_ Vector2 operator*(real_t p_scalar, const Vector2 &p_vec) {
+_FORCE_INLINE_ Vector2 operator*(float p_scalar, const Vector2 &p_vec) {
+	return p_vec * p_scalar;
+}
+
+_FORCE_INLINE_ Vector2 operator*(double p_scalar, const Vector2 &p_vec) {
+	return p_vec * p_scalar;
+}
+
+_FORCE_INLINE_ Vector2 operator*(int32_t p_scalar, const Vector2 &p_vec) {
+	return p_vec * p_scalar;
+}
+
+_FORCE_INLINE_ Vector2 operator*(int64_t p_scalar, const Vector2 &p_vec) {
 	return p_vec * p_scalar;
 }
 
@@ -303,6 +323,22 @@ struct Vector2i {
 		y = p_y;
 	}
 };
+
+_FORCE_INLINE_ Vector2i operator*(const int32_t &p_scalar, const Vector2i &p_vector) {
+	return p_vector * p_scalar;
+}
+
+_FORCE_INLINE_ Vector2i operator*(const int64_t &p_scalar, const Vector2i &p_vector) {
+	return p_vector * p_scalar;
+}
+
+_FORCE_INLINE_ Vector2i operator*(const float &p_scalar, const Vector2i &p_vector) {
+	return p_vector * p_scalar;
+}
+
+_FORCE_INLINE_ Vector2i operator*(const double &p_scalar, const Vector2i &p_vector) {
+	return p_vector * p_scalar;
+}
 
 typedef Vector2i Size2i;
 typedef Vector2i Point2i;

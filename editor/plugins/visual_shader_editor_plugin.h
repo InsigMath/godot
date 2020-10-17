@@ -72,6 +72,8 @@ private:
 		Map<int, Port> output_ports;
 		VBoxContainer *preview_box;
 		LineEdit *uniform_name;
+		OptionButton *const_op;
+		CodeEdit *expression_edit;
 	};
 
 	Ref<VisualShader> visual_shader;
@@ -88,6 +90,9 @@ public:
 	void register_link(VisualShader::Type p_type, int p_id, VisualShaderNode *p_visual_node, GraphNode *p_graph_node);
 	void register_output_port(int p_id, int p_port, TextureButton *p_button);
 	void register_uniform_name(int p_id, LineEdit *p_uniform_name);
+	void register_default_input_button(int p_node_id, int p_port_id, Button *p_button);
+	void register_constant_option_btn(int p_node_id, OptionButton *p_button);
+	void register_expression_edit(int p_node_id, CodeEdit *p_expression_edit);
 	void clear_links();
 	void set_shader_type(VisualShader::Type p_type);
 	bool is_preview_visible(int p_id) const;
@@ -104,9 +109,12 @@ public:
 	void set_node_size(VisualShader::Type p_type, int p_id, const Vector2 &p_size);
 	void refresh_node_ports(VisualShader::Type p_type, int p_node);
 	void set_input_port_default_value(VisualShader::Type p_type, int p_node_id, int p_port_id, Variant p_value);
-	void register_default_input_button(int p_node_id, int p_port_id, Button *p_button);
 	void update_uniform_refs();
 	void set_uniform_name(VisualShader::Type p_type, int p_node_id, const String &p_name);
+	void update_constant(VisualShader::Type p_type, int p_node_id);
+	void set_expression(VisualShader::Type p_type, int p_node_id, const String &p_expression);
+	int get_constant_index(float p_constant) const;
+	void update_node_size(int p_node_id);
 	VisualShader::Type get_shader_type() const;
 
 	VisualShaderGraphPlugin();
@@ -241,7 +249,10 @@ class VisualShaderEditor : public VBoxContainer {
 	};
 
 	Vector<AddOption> add_options;
-	int texture_node_option_idx;
+	int cubemap_node_option_idx;
+	int texture2d_node_option_idx;
+	int texture2d_array_node_option_idx;
+	int texture3d_node_option_idx;
 	int custom_node_option_idx;
 	List<String> keyword_list;
 
@@ -250,7 +261,10 @@ class VisualShaderEditor : public VBoxContainer {
 	void _draw_color_over_button(Object *obj, Color p_color);
 
 	void _add_custom_node(const String &p_path);
-	void _add_texture_node(const String &p_path);
+	void _add_cubemap_node(const String &p_path);
+	void _add_texture2d_node(const String &p_path);
+	void _add_texture2d_array_node(const String &p_path);
+	void _add_texture3d_node(const String &p_path);
 	VisualShaderNode *_add_node(int p_idx, int p_op_idx = -1);
 	void _update_options_menu();
 	void _set_mode(int p_which);
@@ -261,7 +275,16 @@ class VisualShaderEditor : public VBoxContainer {
 
 	static VisualShaderEditor *singleton;
 
+	struct DragOp {
+		VisualShader::Type type;
+		int node;
+		Vector2 from;
+		Vector2 to;
+	};
+	List<DragOp> drag_buffer;
+	bool drag_dirty = false;
 	void _node_dragged(const Vector2 &p_from, const Vector2 &p_to, int p_node);
+	void _nodes_dragged();
 	bool updating;
 
 	void _connection_request(const String &p_from, int p_from_index, const String &p_to, int p_to_index);
@@ -270,8 +293,9 @@ class VisualShaderEditor : public VBoxContainer {
 	void _scroll_changed(const Vector2 &p_scroll);
 	void _node_selected(Object *p_node);
 
-	void _delete_request(int);
-	void _delete_nodes();
+	void _delete_nodes(int p_type, const List<int> &p_nodes);
+	void _delete_node_request(int p_type, int p_node);
+	void _delete_nodes_request();
 
 	void _removed_from_graph();
 
@@ -315,6 +339,8 @@ class VisualShaderEditor : public VBoxContainer {
 
 	void _input_select_item(Ref<VisualShaderNodeInput> input, String name);
 	void _uniform_select_item(Ref<VisualShaderNodeUniformRef> p_uniform, String p_name);
+
+	void _float_constant_selected(int p_index, int p_node);
 
 	VisualShader::Type get_current_shader_type() const;
 

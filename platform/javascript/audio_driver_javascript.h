@@ -33,15 +33,30 @@
 
 #include "servers/audio_server.h"
 
+#include "core/os/mutex.h"
+#include "core/os/thread.h"
+
 class AudioDriverJavaScript : public AudioDriver {
+private:
 	float *internal_buffer = nullptr;
 
-	int _driver_id = 0;
 	int buffer_length = 0;
+	int mix_rate = 0;
+	int channel_count = 0;
 
 public:
+#ifndef NO_THREADS
+	Mutex mutex;
+	Thread *thread = nullptr;
+	bool quit = false;
+	bool needs_process = true;
+
+	static void _audio_thread_func(void *p_data);
+#endif
+
+	void _js_driver_process();
+
 	static bool is_available();
-	void mix_to_js();
 	void process_capture(float sample);
 
 	static AudioDriverJavaScript *singleton;
