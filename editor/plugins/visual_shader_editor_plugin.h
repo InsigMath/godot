@@ -33,6 +33,7 @@
 
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
+#include "editor/plugins/curve_editor_plugin.h"
 #include "editor/property_editor.h"
 #include "scene/gui/button.h"
 #include "scene/gui/graph_edit.h"
@@ -55,25 +56,26 @@ class VisualShaderGraphPlugin : public Reference {
 
 private:
 	struct InputPort {
-		Button *default_input_button;
+		Button *default_input_button = nullptr;
 	};
 
 	struct Port {
-		TextureButton *preview_button;
+		TextureButton *preview_button = nullptr;
 	};
 
 	struct Link {
-		VisualShader::Type type;
-		VisualShaderNode *visual_node;
-		GraphNode *graph_node;
-		bool preview_visible;
-		int preview_pos;
+		VisualShader::Type type = VisualShader::Type::TYPE_MAX;
+		VisualShaderNode *visual_node = nullptr;
+		GraphNode *graph_node = nullptr;
+		bool preview_visible = 0;
+		int preview_pos = 0;
 		Map<int, InputPort> input_ports;
 		Map<int, Port> output_ports;
-		VBoxContainer *preview_box;
-		LineEdit *uniform_name;
-		OptionButton *const_op;
-		CodeEdit *expression_edit;
+		VBoxContainer *preview_box = nullptr;
+		LineEdit *uniform_name = nullptr;
+		OptionButton *const_op = nullptr;
+		CodeEdit *expression_edit = nullptr;
+		CurveEditor *curve_editor = nullptr;
 	};
 
 	Ref<VisualShader> visual_shader;
@@ -93,6 +95,7 @@ public:
 	void register_default_input_button(int p_node_id, int p_port_id, Button *p_button);
 	void register_constant_option_btn(int p_node_id, OptionButton *p_button);
 	void register_expression_edit(int p_node_id, CodeEdit *p_expression_edit);
+	void register_curve_editor(int p_node_id, CurveEditor *p_curve_editor);
 	void clear_links();
 	void set_shader_type(VisualShader::Type p_type);
 	bool is_preview_visible(int p_id) const;
@@ -111,6 +114,7 @@ public:
 	void set_input_port_default_value(VisualShader::Type p_type, int p_node_id, int p_port_id, Variant p_value);
 	void update_uniform_refs();
 	void set_uniform_name(VisualShader::Type p_type, int p_node_id, const String &p_name);
+	void update_curve(int p_node_id);
 	void update_constant(VisualShader::Type p_type, int p_node_id);
 	void set_expression(VisualShader::Type p_type, int p_node_id, const String &p_expression);
 	int get_constant_index(float p_constant) const;
@@ -202,16 +206,16 @@ class VisualShaderEditor : public VBoxContainer {
 		String category;
 		String type;
 		String description;
-		int sub_func;
+		int sub_func = 0;
 		String sub_func_str;
 		Ref<Script> script;
-		int mode;
-		int return_type;
-		int func;
-		float value;
-		bool highend;
-		bool is_custom;
-		int temp_idx;
+		int mode = 0;
+		int return_type = 0;
+		int func = 0;
+		float value = 0;
+		bool highend = false;
+		bool is_custom = false;
+		int temp_idx = 0;
 
 		AddOption(const String &p_name = String(), const String &p_category = String(), const String &p_sub_category = String(), const String &p_type = String(), const String &p_description = String(), int p_sub_func = -1, int p_return_type = -1, int p_mode = -1, int p_func = -1, float p_value = -1, bool p_highend = false) {
 			name = p_name;
@@ -254,6 +258,7 @@ class VisualShaderEditor : public VBoxContainer {
 	int texture2d_array_node_option_idx;
 	int texture3d_node_option_idx;
 	int custom_node_option_idx;
+	int curve_node_option_idx;
 	List<String> keyword_list;
 
 	List<VisualShaderNodeUniformRef> uniform_refs;
@@ -265,6 +270,8 @@ class VisualShaderEditor : public VBoxContainer {
 	void _add_texture2d_node(const String &p_path);
 	void _add_texture2d_array_node(const String &p_path);
 	void _add_texture3d_node(const String &p_path);
+	void _add_curve_node(const String &p_path);
+
 	VisualShaderNode *_add_node(int p_idx, int p_op_idx = -1);
 	void _update_options_menu();
 	void _set_mode(int p_which);
@@ -276,8 +283,8 @@ class VisualShaderEditor : public VBoxContainer {
 	static VisualShaderEditor *singleton;
 
 	struct DragOp {
-		VisualShader::Type type;
-		int node;
+		VisualShader::Type type = VisualShader::Type::TYPE_MAX;
+		int node = 0;
 		Vector2 from;
 		Vector2 to;
 	};
@@ -347,12 +354,12 @@ class VisualShaderEditor : public VBoxContainer {
 	void _add_input_port(int p_node, int p_port, int p_port_type, const String &p_name);
 	void _remove_input_port(int p_node, int p_port);
 	void _change_input_port_type(int p_type, int p_node, int p_port);
-	void _change_input_port_name(const String &p_text, Object *line_edit, int p_node, int p_port);
+	void _change_input_port_name(const String &p_text, Object *p_line_edit, int p_node, int p_port);
 
 	void _add_output_port(int p_node, int p_port, int p_port_type, const String &p_name);
 	void _remove_output_port(int p_node, int p_port);
 	void _change_output_port_type(int p_type, int p_node, int p_port);
-	void _change_output_port_name(const String &p_text, Object *line_edit, int p_node, int p_port);
+	void _change_output_port_name(const String &p_text, Object *p_line_edit, int p_node, int p_port);
 
 	void _expression_focus_out(Object *code_edit, int p_node);
 
@@ -455,9 +462,9 @@ public:
 class VisualShaderNodePortPreview : public Control {
 	GDCLASS(VisualShaderNodePortPreview, Control);
 	Ref<VisualShader> shader;
-	VisualShader::Type type;
-	int node;
-	int port;
+	VisualShader::Type type = VisualShader::Type::TYPE_MAX;
+	int node = 0;
+	int port = 0;
 	void _shader_changed(); //must regen
 protected:
 	void _notification(int p_what);
@@ -466,7 +473,6 @@ protected:
 public:
 	virtual Size2 get_minimum_size() const override;
 	void setup(const Ref<VisualShader> &p_shader, VisualShader::Type p_type, int p_node, int p_port);
-	VisualShaderNodePortPreview();
 };
 
 class VisualShaderConversionPlugin : public EditorResourceConversionPlugin {

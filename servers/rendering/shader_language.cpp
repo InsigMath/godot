@@ -30,7 +30,7 @@
 
 #include "shader_language.h"
 #include "core/os/os.h"
-#include "core/print_string.h"
+#include "core/string/print_string.h"
 #include "servers/rendering_server.h"
 
 static bool _is_text_char(char32_t c) {
@@ -223,7 +223,7 @@ const char *ShaderLanguage::token_names[TK_MAX] = {
 
 String ShaderLanguage::get_token_text(Token p_token) {
 	String name = token_names[p_token.type];
-	if (p_token.type == TK_INT_CONSTANT || p_token.type == TK_REAL_CONSTANT) {
+	if (p_token.type == TK_INT_CONSTANT || p_token.type == TK_FLOAT_CONSTANT) {
 		name += "(" + rtos(p_token.constant) + ")";
 	} else if (p_token.type == TK_IDENTIFIER) {
 		name += "(" + String(p_token.text) + ")";
@@ -637,7 +637,7 @@ ShaderLanguage::Token ShaderLanguage::_get_token() {
 					char_idx += str.length();
 					Token tk;
 					if (period_found || exponent_found || float_suffix_found) {
-						tk.type = TK_REAL_CONSTANT;
+						tk.type = TK_FLOAT_CONSTANT;
 					} else {
 						tk.type = TK_INT_CONSTANT;
 					}
@@ -2157,7 +2157,6 @@ const ShaderLanguage::BuiltinFuncDef ShaderLanguage::builtin_func_defs[] = {
 	{ "fma", TYPE_VEC4, { TYPE_VEC4, TYPE_VEC4, TYPE_VEC4, TYPE_VOID }, TAG_GLOBAL, false },
 
 	{ nullptr, TYPE_VOID, { TYPE_VOID }, TAG_GLOBAL, false }
-
 };
 
 const ShaderLanguage::BuiltinFuncOutArgs ShaderLanguage::builtin_func_out_args[] = {
@@ -3175,7 +3174,7 @@ bool ShaderLanguage::_validate_assign(Node *p_node, const FunctionInfo &p_functi
 }
 
 bool ShaderLanguage::_propagate_function_call_sampler_uniform_settings(StringName p_name, int p_argument, TextureFilter p_filter, TextureRepeat p_repeat) {
-	for (int i = 0; shader->functions.size(); i++) {
+	for (int i = 0; i < shader->functions.size(); i++) {
 		if (shader->functions[i].name == p_name) {
 			ERR_FAIL_INDEX_V(p_argument, shader->functions[i].function->arguments.size(), false);
 			FunctionNode::Argument *arg = &shader->functions[i].function->arguments.write[p_argument];
@@ -3209,7 +3208,7 @@ bool ShaderLanguage::_propagate_function_call_sampler_uniform_settings(StringNam
 }
 
 bool ShaderLanguage::_propagate_function_call_sampler_builtin_reference(StringName p_name, int p_argument, const StringName &p_builtin) {
-	for (int i = 0; shader->functions.size(); i++) {
+	for (int i = 0; i < shader->functions.size(); i++) {
 		if (shader->functions[i].name == p_name) {
 			ERR_FAIL_INDEX_V(p_argument, shader->functions[i].function->arguments.size(), false);
 			FunctionNode::Argument *arg = &shader->functions[i].function->arguments.write[p_argument];
@@ -3270,7 +3269,7 @@ ShaderLanguage::Node *ShaderLanguage::_parse_expression(BlockNode *p_block, cons
 				return nullptr;
 			}
 
-		} else if (tk.type == TK_REAL_CONSTANT) {
+		} else if (tk.type == TK_FLOAT_CONSTANT) {
 			ConstantNode *constant = alloc_node<ConstantNode>();
 			ConstantNode::Value v;
 			v.real = tk.constant;
@@ -6261,7 +6260,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 									tk = _get_token();
 								}
 
-								if (tk.type != TK_REAL_CONSTANT && tk.type != TK_INT_CONSTANT) {
+								if (tk.type != TK_FLOAT_CONSTANT && tk.type != TK_INT_CONSTANT) {
 									_set_error("Expected integer constant");
 									return ERR_PARSE_ERROR;
 								}
@@ -6285,7 +6284,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 									tk = _get_token();
 								}
 
-								if (tk.type != TK_REAL_CONSTANT && tk.type != TK_INT_CONSTANT) {
+								if (tk.type != TK_FLOAT_CONSTANT && tk.type != TK_INT_CONSTANT) {
 									_set_error("Expected integer constant after ','");
 									return ERR_PARSE_ERROR;
 								}
@@ -6298,7 +6297,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 								if (tk.type == TK_COMMA) {
 									tk = _get_token();
 
-									if (tk.type != TK_REAL_CONSTANT && tk.type != TK_INT_CONSTANT) {
+									if (tk.type != TK_FLOAT_CONSTANT && tk.type != TK_INT_CONSTANT) {
 										_set_error("Expected integer constant after ','");
 										return ERR_PARSE_ERROR;
 									}

@@ -31,13 +31,13 @@
 #ifndef SHADER_LANGUAGE_H
 #define SHADER_LANGUAGE_H
 
-#include "core/list.h"
-#include "core/map.h"
-#include "core/script_language.h"
-#include "core/string_name.h"
+#include "core/object/script_language.h"
+#include "core/string/string_name.h"
+#include "core/string/ustring.h"
+#include "core/templates/list.h"
+#include "core/templates/map.h"
 #include "core/typedefs.h"
-#include "core/ustring.h"
-#include "core/variant.h"
+#include "core/variant/variant.h"
 
 class ShaderLanguage {
 public:
@@ -46,7 +46,7 @@ public:
 		TK_IDENTIFIER,
 		TK_TRUE,
 		TK_FALSE,
-		TK_REAL_CONSTANT,
+		TK_FLOAT_CONSTANT,
 		TK_INT_CONSTANT,
 		TK_TYPE_VOID,
 		TK_TYPE_BOOL,
@@ -519,7 +519,7 @@ public:
 		DataType basetype = TYPE_VOID;
 		bool basetype_const = false;
 		StringName base_struct_name;
-		DataPrecision precision;
+		DataPrecision precision = PRECISION_DEFAULT;
 		DataType datatype = TYPE_VOID;
 		int array_size = 0;
 		StringName struct_name;
