@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -159,6 +159,7 @@ int Light2D::get_item_shadow_cull_mask() const {
 void Light2D::set_shadow_enabled(bool p_enabled) {
 	shadow = p_enabled;
 	RS::get_singleton()->canvas_light_set_shadow_enabled(canvas_light, shadow);
+	notify_property_list_changed();
 }
 
 bool Light2D::is_shadow_enabled() const {
@@ -219,6 +220,12 @@ void Light2D::set_shadow_smooth(float p_amount) {
 
 float Light2D::get_shadow_smooth() const {
 	return shadow_smooth;
+}
+
+void Light2D::_validate_property(PropertyInfo &property) const {
+	if (!shadow && (property.name == "shadow_color" || property.name == "shadow_filter" || property.name == "shadow_filter_smooth" || property.name == "shadow_item_cull_mask")) {
+		property.usage = PROPERTY_USAGE_NOEDITOR;
+	}
 }
 
 void Light2D::_bind_methods() {
@@ -300,22 +307,6 @@ void Light2D::_bind_methods() {
 
 Light2D::Light2D() {
 	canvas_light = RenderingServer::get_singleton()->canvas_light_create();
-	enabled = true;
-	editor_only = false;
-	shadow = false;
-	color = Color(1, 1, 1);
-	height = 0;
-	z_min = -1024;
-	z_max = 1024;
-	layer_min = 0;
-	layer_max = 0;
-	item_mask = 1;
-	item_shadow_mask = 1;
-	energy = 1.0;
-	shadow_color = Color(0, 0, 0, 0);
-	shadow_filter = SHADOW_FILTER_NONE;
-	shadow_smooth = 0;
-	blend_mode = BLEND_MODE_ADD;
 	set_notify_transform(true);
 }
 
@@ -393,7 +384,6 @@ void PointLight2D::set_texture_offset(const Vector2 &p_offset) {
 	texture_offset = p_offset;
 	RS::get_singleton()->canvas_light_set_texture_offset(_get_light(), texture_offset);
 	item_rect_changed();
-	_change_notify("offset");
 }
 
 Vector2 PointLight2D::get_texture_offset() const {
@@ -404,7 +394,7 @@ String PointLight2D::get_configuration_warning() const {
 	String warning = Node2D::get_configuration_warning();
 
 	if (!texture.is_valid()) {
-		if (!warning.empty()) {
+		if (!warning.is_empty()) {
 			warning += "\n\n";
 		}
 		warning += TTR("A texture with the shape of the light must be supplied to the \"Texture\" property.");

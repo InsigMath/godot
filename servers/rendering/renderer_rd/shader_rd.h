@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -36,6 +36,7 @@
 #include "core/templates/map.h"
 #include "core/templates/rid_owner.h"
 #include "core/variant/variant.h"
+#include "servers/rendering_server.h"
 
 #include <stdio.h>
 /**
@@ -98,8 +99,10 @@ class ShaderRD {
 
 	const char *name;
 
+	CharString base_compute_defines;
+
 protected:
-	ShaderRD() {}
+	ShaderRD();
 	void setup(const char *p_vertex_code, const char *p_fragment_code, const char *p_compute_code, const char *p_name);
 
 public:
@@ -132,6 +135,8 @@ public:
 
 	void set_variant_enabled(int p_variant, bool p_enabled);
 	bool is_variant_enabled(int p_variant) const;
+
+	RS::ShaderNativeSourceCode version_get_native_source_code(RID p_version);
 
 	void initialize(const Vector<String> &p_variant_defines, const String &p_general_defines = "");
 	virtual ~ShaderRD();

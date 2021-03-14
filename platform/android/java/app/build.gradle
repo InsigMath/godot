@@ -85,6 +85,8 @@ android {
             abiFilters export_abi_list
         }
 
+        manifestPlaceholders = [godotEditorVersion: getGodotEditorVersion()]
+
         // Feel free to modify the application id to your own.
         applicationId getExportPackageName()
         versionCode getExportVersionCode()
@@ -97,6 +99,8 @@ android {
         abortOnError false
         disable 'MissingTranslation', 'UnusedResources'
     }
+
+    ndkVersion versions.ndkVersion
 
     packagingOptions {
         exclude 'META-INF/LICENSE'

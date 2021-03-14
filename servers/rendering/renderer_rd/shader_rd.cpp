@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -301,6 +301,7 @@ void ShaderRD::_compile_variant(uint32_t p_variant, Version *p_version) {
 
 		builder.append(compute_codev.get_data()); // version info (if exists)
 		builder.append("\n"); //make sure defines begin at newline
+		builder.append(base_compute_defines.get_data());
 		builder.append(general_defines.get_data());
 		builder.append(variant_defines[p_variant].get_data());
 
@@ -351,6 +352,127 @@ void ShaderRD::_compile_variant(uint32_t p_variant, Version *p_version) {
 	}
 }
 
+RS::ShaderNativeSourceCode ShaderRD::version_get_native_source_code(RID p_version) {
+	Version *version = version_owner.getornull(p_version);
+	RS::ShaderNativeSourceCode source_code;
+	ERR_FAIL_COND_V(!version, source_code);
+
+	source_code.versions.resize(variant_defines.size());
+
+	for (int i = 0; i < source_code.versions.size(); i++) {
+		if (!is_compute) {
+			//vertex stage
+
+			StringBuilder builder;
+
+			builder.append(vertex_codev.get_data()); // version info (if exists)
+			builder.append("\n"); //make sure defines begin at newline
+			builder.append(general_defines.get_data());
+			builder.append(variant_defines[i].get_data());
+
+			for (int j = 0; j < version->custom_defines.size(); j++) {
+				builder.append(version->custom_defines[j].get_data());
+			}
+
+			builder.append(vertex_code0.get_data()); //first part of vertex
+
+			builder.append(version->uniforms.get_data()); //uniforms (same for vertex and fragment)
+
+			builder.append(vertex_code1.get_data()); //second part of vertex
+
+			builder.append(version->vertex_globals.get_data()); // vertex globals
+
+			builder.append(vertex_code2.get_data()); //third part of vertex
+
+			builder.append(version->vertex_code.get_data()); // code
+
+			builder.append(vertex_code3.get_data()); //fourth of vertex
+
+			RS::ShaderNativeSourceCode::Version::Stage stage;
+			stage.name = "vertex";
+			stage.code = builder.as_string();
+
+			source_code.versions.write[i].stages.push_back(stage);
+		}
+
+		if (!is_compute) {
+			//fragment stage
+
+			StringBuilder builder;
+
+			builder.append(fragment_codev.get_data()); // version info (if exists)
+			builder.append("\n"); //make sure defines begin at newline
+			builder.append(general_defines.get_data());
+			builder.append(variant_defines[i].get_data());
+			for (int j = 0; j < version->custom_defines.size(); j++) {
+				builder.append(version->custom_defines[j].get_data());
+			}
+
+			builder.append(fragment_code0.get_data()); //first part of fragment
+
+			builder.append(version->uniforms.get_data()); //uniforms (same for fragment and fragment)
+
+			builder.append(fragment_code1.get_data()); //first part of fragment
+
+			builder.append(version->fragment_globals.get_data()); // fragment globals
+
+			builder.append(fragment_code2.get_data()); //third part of fragment
+
+			builder.append(version->fragment_light.get_data()); // fragment light
+
+			builder.append(fragment_code3.get_data()); //fourth part of fragment
+
+			builder.append(version->fragment_code.get_data()); // fragment code
+
+			builder.append(fragment_code4.get_data()); //fourth part of fragment
+
+			RS::ShaderNativeSourceCode::Version::Stage stage;
+			stage.name = "fragment";
+			stage.code = builder.as_string();
+
+			source_code.versions.write[i].stages.push_back(stage);
+		}
+
+		if (is_compute) {
+			//compute stage
+
+			StringBuilder builder;
+
+			builder.append(compute_codev.get_data()); // version info (if exists)
+			builder.append("\n"); //make sure defines begin at newline
+			builder.append(base_compute_defines.get_data());
+			builder.append(general_defines.get_data());
+			builder.append(variant_defines[i].get_data());
+
+			for (int j = 0; j < version->custom_defines.size(); j++) {
+				builder.append(version->custom_defines[j].get_data());
+			}
+
+			builder.append(compute_code0.get_data()); //first part of compute
+
+			builder.append(version->uniforms.get_data()); //uniforms (same for compute and fragment)
+
+			builder.append(compute_code1.get_data()); //second part of compute
+
+			builder.append(version->compute_globals.get_data()); // compute globals
+
+			builder.append(compute_code2.get_data()); //third part of compute
+
+			builder.append(version->compute_code.get_data()); // code
+
+			builder.append(compute_code3.get_data()); //fourth of compute
+
+			RS::ShaderNativeSourceCode::Version::Stage stage;
+			stage.name = "compute";
+			stage.code = builder.as_string();
+
+			source_code.versions.write[i].stages.push_back(stage);
+		}
+	}
+
+	return source_code;
+}
+
 void ShaderRD::_compile_version(Version *p_version) {
 	_clear_version(p_version);
 
@@ -360,7 +482,7 @@ void ShaderRD::_compile_version(Version *p_version) {
 	p_version->variants = memnew_arr(RID, variant_defines.size());
 #if 1
 
-	RendererCompositorRD::thread_work_pool.do_work(variant_defines.size(), this, &ShaderRD::_compile_variant, p_version);
+	RendererThreadPool::singleton->thread_work_pool.do_work(variant_defines.size(), this, &ShaderRD::_compile_variant, p_version);
 #else
 	for (int i = 0; i < variant_defines.size(); i++) {
 		_compile_variant(i, p_version);
@@ -473,6 +595,22 @@ void ShaderRD::set_variant_enabled(int p_variant, bool p_enabled) {
 bool ShaderRD::is_variant_enabled(int p_variant) const {
 	ERR_FAIL_INDEX_V(p_variant, variants_enabled.size(), false);
 	return variants_enabled[p_variant];
+}
+
+ShaderRD::ShaderRD() {
+	// Do not feel forced to use this, in most cases it makes little to no difference.
+	bool use_32_threads = false;
+	if (RD::get_singleton()->get_device_vendor_name() == "NVIDIA") {
+		use_32_threads = true;
+	}
+	String base_compute_define_text;
+	if (use_32_threads) {
+		base_compute_define_text = "\n#define NATIVE_LOCAL_GROUP_SIZE 32\n#define NATIVE_LOCAL_SIZE_2D_X 8\n#define NATIVE_LOCAL_SIZE_2D_Y 4\n";
+	} else {
+		base_compute_define_text = "\n#define NATIVE_LOCAL_GROUP_SIZE 64\n#define NATIVE_LOCAL_SIZE_2D_X 8\n#define NATIVE_LOCAL_SIZE_2D_Y 8\n";
+	}
+
+	base_compute_defines = base_compute_define_text.ascii();
 }
 
 void ShaderRD::initialize(const Vector<String> &p_variant_defines, const String &p_general_defines) {

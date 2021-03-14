@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -165,7 +165,7 @@ void AcceptDialog::register_text_enter(Node *p_line_edit) {
 
 void AcceptDialog::_update_child_rects() {
 	Size2 label_size = label->get_minimum_size();
-	if (label->get_text().empty()) {
+	if (label->get_text().is_empty()) {
 		label_size.height = 0;
 	}
 	int margin = hbc->get_theme_constant("margin", "Dialogs");
@@ -292,8 +292,6 @@ void AcceptDialog::set_swap_cancel_ok(bool p_swap) {
 }
 
 AcceptDialog::AcceptDialog() {
-	parent_visible = nullptr;
-
 	set_wrap_controls(true);
 	set_visible(false);
 	set_transient(true);
@@ -309,8 +307,8 @@ AcceptDialog::AcceptDialog() {
 	int button_margin = hbc->get_theme_constant("button_margin", "Dialogs");
 
 	label = memnew(Label);
-	label->set_anchor(MARGIN_RIGHT, Control::ANCHOR_END);
-	label->set_anchor(MARGIN_BOTTOM, Control::ANCHOR_END);
+	label->set_anchor(SIDE_RIGHT, Control::ANCHOR_END);
+	label->set_anchor(SIDE_BOTTOM, Control::ANCHOR_END);
 	label->set_begin(Point2(margin, margin));
 	label->set_end(Point2(-margin, -button_margin - 10));
 	add_child(label);
@@ -325,7 +323,6 @@ AcceptDialog::AcceptDialog() {
 
 	ok->connect("pressed", callable_mp(this, &AcceptDialog::_ok_pressed));
 
-	hide_on_ok = true;
 	set_title(RTR("Alert!"));
 
 	connect("window_input", callable_mp(this, &AcceptDialog::_input_from_window));

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -39,6 +39,7 @@
 #include "core/variant/typed_array.h"
 #include "core/variant/variant.h"
 #include "servers/display_server.h"
+#include "servers/rendering/renderer_thread_pool.h"
 #include "servers/rendering/rendering_device.h"
 #include "servers/rendering/shader_language.h"
 
@@ -51,6 +52,8 @@ class RenderingServer : public Object {
 	bool render_loop_enabled = true;
 
 	Array _get_array_from_surface(uint32_t p_format, Vector<uint8_t> p_vertex_data, Vector<uint8_t> p_attrib_data, Vector<uint8_t> p_skin_data, int p_vertex_len, Vector<uint8_t> p_index_data, int p_index_len) const;
+
+	RendererThreadPool *thread_pool = nullptr;
 
 protected:
 	RID _make_test_cube();
@@ -130,11 +133,11 @@ public:
 	virtual void texture_set_detect_normal_callback(RID p_texture, TextureDetectCallback p_callback, void *p_userdata) = 0;
 
 	enum TextureDetectRoughnessChannel {
-		TEXTURE_DETECT_ROUGNHESS_R,
-		TEXTURE_DETECT_ROUGNHESS_G,
-		TEXTURE_DETECT_ROUGNHESS_B,
-		TEXTURE_DETECT_ROUGNHESS_A,
-		TEXTURE_DETECT_ROUGNHESS_GRAY,
+		TEXTURE_DETECT_ROUGHNESS_R,
+		TEXTURE_DETECT_ROUGHNESS_G,
+		TEXTURE_DETECT_ROUGHNESS_B,
+		TEXTURE_DETECT_ROUGHNESS_A,
+		TEXTURE_DETECT_ROUGHNESS_GRAY,
 	};
 
 	typedef void (*TextureDetectRoughnessCallback)(void *, const String &, TextureDetectRoughnessChannel);
@@ -175,6 +178,19 @@ public:
 
 	virtual void shader_set_default_texture_param(RID p_shader, const StringName &p_name, RID p_texture) = 0;
 	virtual RID shader_get_default_texture_param(RID p_shader, const StringName &p_name) const = 0;
+
+	struct ShaderNativeSourceCode {
+		struct Version {
+			struct Stage {
+				String name;
+				String code;
+			};
+			Vector<Stage> stages;
+		};
+		Vector<Version> versions;
+	};
+
+	virtual ShaderNativeSourceCode shader_get_native_source_code(RID p_shader) const = 0;
 
 	/* COMMON MATERIAL API */
 
@@ -338,6 +354,8 @@ public:
 	virtual void mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) = 0;
 	virtual AABB mesh_get_custom_aabb(RID p_mesh) const = 0;
 
+	virtual void mesh_set_shadow_mesh(RID p_mesh, RID p_shadow_mesh) = 0;
+
 	virtual void mesh_clear(RID p_mesh) = 0;
 
 	/* MULTIMESH API */
@@ -349,7 +367,7 @@ public:
 		MULTIMESH_TRANSFORM_3D,
 	};
 
-	virtual void multimesh_allocate(RID p_multimesh, int p_instances, MultimeshTransformFormat p_transform_format, bool p_use_colors = false, bool p_use_custom_data = false) = 0;
+	virtual void multimesh_allocate_data(RID p_multimesh, int p_instances, MultimeshTransformFormat p_transform_format, bool p_use_colors = false, bool p_use_custom_data = false) = 0;
 	virtual int multimesh_get_instance_count(RID p_multimesh) const = 0;
 
 	virtual void multimesh_set_mesh(RID p_multimesh, RID p_mesh) = 0;
@@ -391,7 +409,7 @@ public:
 	/* SKELETON API */
 
 	virtual RID skeleton_create() = 0;
-	virtual void skeleton_allocate(RID p_skeleton, int p_bones, bool p_2d_skeleton = false) = 0;
+	virtual void skeleton_allocate_data(RID p_skeleton, int p_bones, bool p_2d_skeleton = false) = 0;
 	virtual int skeleton_get_bone_count(RID p_skeleton) const = 0;
 	virtual void skeleton_bone_set_transform(RID p_skeleton, int p_bone, const Transform &p_transform) = 0;
 	virtual Transform skeleton_bone_get_transform(RID p_skeleton, int p_bone) const = 0;
@@ -534,7 +552,7 @@ public:
 
 	virtual RID gi_probe_create() = 0;
 
-	virtual void gi_probe_allocate(RID p_gi_probe, const Transform &p_to_cell_xform, const AABB &p_aabb, const Vector3i &p_octree_size, const Vector<uint8_t> &p_octree_cells, const Vector<uint8_t> &p_data_cells, const Vector<uint8_t> &p_distance_field, const Vector<int> &p_level_counts) = 0;
+	virtual void gi_probe_allocate_data(RID p_gi_probe, const Transform &p_to_cell_xform, const AABB &p_aabb, const Vector3i &p_octree_size, const Vector<uint8_t> &p_octree_cells, const Vector<uint8_t> &p_data_cells, const Vector<uint8_t> &p_distance_field, const Vector<int> &p_level_counts) = 0;
 
 	virtual AABB gi_probe_get_bounds(RID p_gi_probe) const = 0;
 	virtual Vector3i gi_probe_get_octree_size(RID p_gi_probe) const = 0;
@@ -782,7 +800,7 @@ public:
 
 	virtual void viewport_set_sdf_oversize_and_scale(RID p_viewport, ViewportSDFOversize p_oversize, ViewportSDFScale p_scale) = 0;
 
-	virtual void viewport_set_shadow_atlas_size(RID p_viewport, int p_size) = 0;
+	virtual void viewport_set_shadow_atlas_size(RID p_viewport, int p_size, bool p_16_bits = false) = 0;
 	virtual void viewport_set_shadow_atlas_quadrant_subdivision(RID p_viewport, int p_quadrant, int p_subdiv) = 0;
 
 	enum ViewportMSAA {
@@ -840,7 +858,10 @@ public:
 		VIEWPORT_DEBUG_DRAW_SDFGI_PROBES,
 		VIEWPORT_DEBUG_DRAW_GI_BUFFER,
 		VIEWPORT_DEBUG_DRAW_DISABLE_LOD,
-
+		VIEWPORT_DEBUG_DRAW_CLUSTER_OMNI_LIGHTS,
+		VIEWPORT_DEBUG_DRAW_CLUSTER_SPOT_LIGHTS,
+		VIEWPORT_DEBUG_DRAW_CLUSTER_DECALS,
+		VIEWPORT_DEBUG_DRAW_CLUSTER_REFLECTION_PROBES,
 	};
 
 	virtual void viewport_set_debug_draw(RID p_viewport, ViewportDebugDraw p_draw) = 0;
@@ -849,7 +870,7 @@ public:
 	virtual float viewport_get_measured_render_time_cpu(RID p_viewport) const = 0;
 	virtual float viewport_get_measured_render_time_gpu(RID p_viewport) const = 0;
 
-	virtual void directional_shadow_atlas_set_size(int p_size) = 0;
+	virtual void directional_shadow_atlas_set_size(int p_size, bool p_16_bits = false) = 0;
 
 	/* SKY API */
 
@@ -964,9 +985,10 @@ public:
 		ENV_SDFGI_Y_SCALE_50_PERCENT
 	};
 
-	virtual void environment_set_sdfgi(RID p_env, bool p_enable, EnvironmentSDFGICascades p_cascades, float p_min_cell_size, EnvironmentSDFGIYScale p_y_scale, bool p_use_occlusion, bool p_use_multibounce, bool p_read_sky, float p_energy, float p_normal_bias, float p_probe_bias) = 0;
+	virtual void environment_set_sdfgi(RID p_env, bool p_enable, EnvironmentSDFGICascades p_cascades, float p_min_cell_size, EnvironmentSDFGIYScale p_y_scale, bool p_use_occlusion, float p_bounce_feedback, bool p_read_sky, float p_energy, float p_normal_bias, float p_probe_bias) = 0;
 
 	enum EnvironmentSDFGIRayCount {
+		ENV_SDFGI_RAY_COUNT_4,
 		ENV_SDFGI_RAY_COUNT_8,
 		ENV_SDFGI_RAY_COUNT_16,
 		ENV_SDFGI_RAY_COUNT_32,
@@ -990,20 +1012,22 @@ public:
 
 	virtual void environment_set_sdfgi_frames_to_converge(EnvironmentSDFGIFramesToConverge p_frames) = 0;
 
-	virtual void environment_set_fog(RID p_env, bool p_enable, const Color &p_light_color, float p_light_energy, float p_sun_scatter, float p_density, float p_height, float p_height_density, float p_aerial_perspective) = 0;
-
-	enum EnvVolumetricFogShadowFilter {
-		ENV_VOLUMETRIC_FOG_SHADOW_FILTER_DISABLED,
-		ENV_VOLUMETRIC_FOG_SHADOW_FILTER_LOW,
-		ENV_VOLUMETRIC_FOG_SHADOW_FILTER_MEDIUM,
-		ENV_VOLUMETRIC_FOG_SHADOW_FILTER_HIGH,
+	enum EnvironmentSDFGIFramesToUpdateLight {
+		ENV_SDFGI_UPDATE_LIGHT_IN_1_FRAME,
+		ENV_SDFGI_UPDATE_LIGHT_IN_2_FRAMES,
+		ENV_SDFGI_UPDATE_LIGHT_IN_4_FRAMES,
+		ENV_SDFGI_UPDATE_LIGHT_IN_8_FRAMES,
+		ENV_SDFGI_UPDATE_LIGHT_IN_16_FRAMES,
+		ENV_SDFGI_UPDATE_LIGHT_MAX,
 	};
 
-	virtual void environment_set_volumetric_fog(RID p_env, bool p_enable, float p_density, const Color &p_light, float p_light_energy, float p_length, float p_detail_spread, float p_gi_inject, EnvVolumetricFogShadowFilter p_shadow_filter) = 0;
+	virtual void environment_set_sdfgi_frames_to_update_light(EnvironmentSDFGIFramesToUpdateLight p_update) = 0;
+
+	virtual void environment_set_fog(RID p_env, bool p_enable, const Color &p_light_color, float p_light_energy, float p_sun_scatter, float p_density, float p_height, float p_height_density, float p_aerial_perspective) = 0;
+
+	virtual void environment_set_volumetric_fog(RID p_env, bool p_enable, float p_density, const Color &p_light, float p_light_energy, float p_length, float p_detail_spread, float p_gi_inject, bool p_temporal_reprojection, float p_temporal_reprojection_amount) = 0;
 	virtual void environment_set_volumetric_fog_volume_size(int p_size, int p_depth) = 0;
 	virtual void environment_set_volumetric_fog_filter_active(bool p_enable) = 0;
-	virtual void environment_set_volumetric_fog_directional_shadow_shrink_size(int p_shrink_size) = 0;
-	virtual void environment_set_volumetric_fog_positional_shadow_shrink_size(int p_shrink_size) = 0;
 
 	virtual Ref<Image> environment_bake_panorama(RID p_env, bool p_bake_irradiance, const Size2i &p_size) = 0;
 
@@ -1395,7 +1419,7 @@ public:
 		INFO_VERTEX_MEM_USED,
 	};
 
-	virtual int get_render_info(RenderInfo p_info) = 0;
+	virtual uint64_t get_render_info(RenderInfo p_info) = 0;
 	virtual String get_video_adapter_name() const = 0;
 	virtual String get_video_adapter_vendor() const = 0;
 
@@ -1408,6 +1432,10 @@ public:
 	virtual void set_frame_profiling_enabled(bool p_enable) = 0;
 	virtual Vector<FrameProfileArea> get_frame_profile() = 0;
 	virtual uint64_t get_frame_profile_frame() = 0;
+
+	virtual float get_frame_setup_time_cpu() const = 0;
+
+	virtual void gi_set_use_half_resolution(bool p_enable) = 0;
 
 	/* TESTING */
 
@@ -1440,6 +1468,8 @@ public:
 	virtual void call_set_use_vsync(bool p_enable) = 0;
 
 	virtual bool is_low_end() const = 0;
+
+	virtual void set_print_gpu_profile(bool p_enable) = 0;
 
 	RenderingDevice *create_local_rendering_device() const;
 

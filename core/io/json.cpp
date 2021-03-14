@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -47,7 +47,7 @@ const char *JSON::tk_name[TK_MAX] = {
 
 static String _make_indent(const String &p_indent, int p_size) {
 	String indent_text = "";
-	if (!p_indent.empty()) {
+	if (!p_indent.is_empty()) {
 		for (int i = 0; i < p_size; i++) {
 			indent_text += p_indent;
 		}
@@ -59,7 +59,7 @@ String JSON::_print_var(const Variant &p_var, const String &p_indent, int p_cur_
 	String colon = ":";
 	String end_statement = "";
 
-	if (!p_indent.empty()) {
+	if (!p_indent.is_empty()) {
 		colon += " ";
 		end_statement += "\n";
 	}
@@ -233,6 +233,52 @@ Error JSON::_get_token(const char32_t *p_str, int &index, int p_len, Token &r_to
 									res |= v;
 								}
 								index += 4; //will add at the end anyway
+
+								if ((res & 0xfffffc00) == 0xd800) {
+									if (p_str[index + 1] != '\\' || p_str[index + 2] != 'u') {
+										r_err_str = "Invalid UTF-16 sequence in string, unpaired lead surrogate";
+										return ERR_PARSE_ERROR;
+									}
+									index += 2;
+									char32_t trail = 0;
+									for (int j = 0; j < 4; j++) {
+										char32_t c = p_str[index + j + 1];
+										if (c == 0) {
+											r_err_str = "Unterminated String";
+											return ERR_PARSE_ERROR;
+										}
+										if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+											r_err_str = "Malformed hex constant in string";
+											return ERR_PARSE_ERROR;
+										}
+										char32_t v;
+										if (c >= '0' && c <= '9') {
+											v = c - '0';
+										} else if (c >= 'a' && c <= 'f') {
+											v = c - 'a';
+											v += 10;
+										} else if (c >= 'A' && c <= 'F') {
+											v = c - 'A';
+											v += 10;
+										} else {
+											ERR_PRINT("Bug parsing hex constant.");
+											v = 0;
+										}
+
+										trail <<= 4;
+										trail |= v;
+									}
+									if ((trail & 0xfffffc00) == 0xdc00) {
+										res = (res << 10UL) + trail - ((0xd800 << 10UL) + 0xdc00 - 0x10000);
+										index += 4; //will add at the end anyway
+									} else {
+										r_err_str = "Invalid UTF-16 sequence in string, unpaired lead surrogate";
+										return ERR_PARSE_ERROR;
+									}
+								} else if ((res & 0xfffffc00) == 0xdc00) {
+									r_err_str = "Invalid UTF-16 sequence in string, unpaired trail surrogate";
+									return ERR_PARSE_ERROR;
+								}
 
 							} break;
 							default: {

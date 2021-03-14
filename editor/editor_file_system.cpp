@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -595,7 +595,7 @@ void EditorFileSystem::scan() {
 		return;
 	}
 
-	if (scanning || scanning_changes || thread) {
+	if (scanning || scanning_changes || thread.is_started()) {
 		return;
 	}
 
@@ -619,13 +619,13 @@ void EditorFileSystem::scan() {
 		_queue_update_script_classes();
 		first_scan = false;
 	} else {
-		ERR_FAIL_COND(thread);
+		ERR_FAIL_COND(thread.is_started());
 		set_process(true);
 		Thread::Settings s;
 		scanning = true;
 		scan_total = 0;
 		s.priority = Thread::PRIORITY_LOW;
-		thread = Thread::create(_thread_func, this, s);
+		thread.start(_thread_func, this, s);
 		//tree->hide();
 		//progress->show();
 	}
@@ -669,10 +669,7 @@ void EditorFileSystem::_scan_new_dir(EditorFileSystemDirectory *p_dir, DirAccess
 				continue;
 			}
 
-			if (FileAccess::exists(cd.plus_file(f).plus_file("project.godot"))) { // skip if another project inside this
-				continue;
-			}
-			if (FileAccess::exists(cd.plus_file(f).plus_file(".gdignore"))) { // skip if another project inside this
+			if (_should_skip_directory(cd.plus_file(f))) {
 				continue;
 			}
 
@@ -874,10 +871,7 @@ void EditorFileSystem::_scan_fs_changes(EditorFileSystemDirectory *p_dir, const 
 
 				int idx = p_dir->find_dir_index(f);
 				if (idx == -1) {
-					if (FileAccess::exists(cd.plus_file(f).plus_file("project.godot"))) { // skip if another project inside this
-						continue;
-					}
-					if (FileAccess::exists(cd.plus_file(f).plus_file(".gdignore"))) { // skip if another project inside this
+					if (_should_skip_directory(cd.plus_file(f))) {
 						continue;
 					}
 
@@ -1046,7 +1040,7 @@ void EditorFileSystem::_thread_func_sources(void *_userdata) {
 
 void EditorFileSystem::scan_changes() {
 	if (first_scan || // Prevent a premature changes scan from inhibiting the first full scan
-			scanning || scanning_changes || thread) {
+			scanning || scanning_changes || thread.is_started()) {
 		scan_changes_pending = true;
 		set_process(true);
 		return;
@@ -1076,12 +1070,12 @@ void EditorFileSystem::scan_changes() {
 		scanning_changes_done = true;
 		emit_signal("sources_changed", sources_changed.size() > 0);
 	} else {
-		ERR_FAIL_COND(thread_sources);
+		ERR_FAIL_COND(thread_sources.is_started());
 		set_process(true);
 		scan_total = 0;
 		Thread::Settings s;
 		s.priority = Thread::PRIORITY_LOW;
-		thread_sources = Thread::create(_thread_func_sources, this, s);
+		thread_sources.start(_thread_func_sources, this, s);
 	}
 }
 
@@ -1092,17 +1086,14 @@ void EditorFileSystem::_notification(int p_what) {
 
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
-			Thread *active_thread = thread ? thread : thread_sources;
-			if (use_threads && active_thread) {
+			Thread &active_thread = thread.is_started() ? thread : thread_sources;
+			if (use_threads && active_thread.is_started()) {
 				//abort thread if in progress
 				abort_scan = true;
 				while (scanning) {
 					OS::get_singleton()->delay_usec(1000);
 				}
-				Thread::wait_to_finish(active_thread);
-				memdelete(active_thread);
-				thread = nullptr;
-				thread_sources = nullptr;
+				active_thread.wait_to_finish();
 				WARN_PRINT("Scan thread aborted...");
 				set_process(false);
 			}
@@ -1125,9 +1116,7 @@ void EditorFileSystem::_notification(int p_what) {
 
 						set_process(false);
 
-						Thread::wait_to_finish(thread_sources);
-						memdelete(thread_sources);
-						thread_sources = nullptr;
+						thread_sources.wait_to_finish();
 						if (_update_scan_actions()) {
 							emit_signal("filesystem_changed");
 						}
@@ -1135,7 +1124,7 @@ void EditorFileSystem::_notification(int p_what) {
 						_queue_update_script_classes();
 						first_scan = false;
 					}
-				} else if (!scanning && thread) {
+				} else if (!scanning && thread.is_started()) {
 					set_process(false);
 
 					if (filesystem) {
@@ -1143,9 +1132,7 @@ void EditorFileSystem::_notification(int p_what) {
 					}
 					filesystem = new_filesystem;
 					new_filesystem = nullptr;
-					Thread::wait_to_finish(thread);
-					memdelete(thread);
-					thread = nullptr;
+					thread.wait_to_finish();
 					_update_scan_actions();
 					emit_signal("filesystem_changed");
 					emit_signal("sources_changed", sources_changed.size() > 0);
@@ -1420,11 +1407,11 @@ void EditorFileSystem::_scan_script_classes(EditorFileSystemDirectory *p_dir) {
 }
 
 void EditorFileSystem::update_script_classes() {
-	if (!update_script_classes_queued) {
+	if (!update_script_classes_queued.is_set()) {
 		return;
 	}
 
-	update_script_classes_queued = false;
+	update_script_classes_queued.clear();
 	ScriptServer::global_classes_clear();
 	if (get_filesystem()) {
 		_scan_script_classes(get_filesystem());
@@ -1443,11 +1430,11 @@ void EditorFileSystem::update_script_classes() {
 }
 
 void EditorFileSystem::_queue_update_script_classes() {
-	if (update_script_classes_queued) {
+	if (update_script_classes_queued.is_set()) {
 		return;
 	}
 
-	update_script_classes_queued = true;
+	update_script_classes_queued.set();
 	call_deferred("update_script_classes");
 }
 
@@ -1477,20 +1464,21 @@ void EditorFileSystem::update_file(const String &p_file) {
 	String type = ResourceLoader::get_resource_type(p_file);
 
 	if (cpos == -1) {
-		//the file did not exist, it was added
+		// The file did not exist, it was added.
 
-		late_added_files.insert(p_file); //remember that it was added. This mean it will be scanned and imported on editor restart
+		late_added_files.insert(p_file); // Remember that it was added. This mean it will be scanned and imported on editor restart.
 		int idx = 0;
+		String file_name = p_file.get_file();
 
 		for (int i = 0; i < fs->files.size(); i++) {
-			if (p_file < fs->files[i]->file) {
+			if (file_name < fs->files[i]->file) {
 				break;
 			}
 			idx++;
 		}
 
 		EditorFileSystemDirectory::FileInfo *fi = memnew(EditorFileSystemDirectory::FileInfo);
-		fi->file = p_file.get_file();
+		fi->file = file_name;
 		fi->import_modified_time = 0;
 		fi->import_valid = ResourceLoader::is_import_valid(p_file);
 
@@ -1985,6 +1973,20 @@ Error EditorFileSystem::_resource_import(const String &p_path) {
 	return OK;
 }
 
+bool EditorFileSystem::_should_skip_directory(const String &p_path) {
+	if (FileAccess::exists(p_path.plus_file("project.godot"))) {
+		// skip if another project inside this
+		return true;
+	}
+
+	if (FileAccess::exists(p_path.plus_file(".gdignore"))) {
+		// skip if a `.gdignore` file is inside this
+		return true;
+	}
+
+	return false;
+}
+
 bool EditorFileSystem::is_group_file(const String &p_path) const {
 	return group_file_cache.has(p_path);
 }
@@ -2073,17 +2075,15 @@ void EditorFileSystem::_update_extensions() {
 
 EditorFileSystem::EditorFileSystem() {
 	ResourceLoader::import = _resource_import;
-	reimport_on_missing_imported_files = GLOBAL_DEF("editor/reimport_missing_imported_files", true);
+	reimport_on_missing_imported_files = GLOBAL_DEF("editor/import/reimport_missing_imported_files", true);
 
 	singleton = this;
 	filesystem = memnew(EditorFileSystemDirectory); //like, empty
 	filesystem->parent = nullptr;
 
-	thread = nullptr;
 	scanning = false;
 	importing = false;
 	use_threads = true;
-	thread_sources = nullptr;
 	new_filesystem = nullptr;
 
 	abort_scan = false;
@@ -2099,7 +2099,7 @@ EditorFileSystem::EditorFileSystem() {
 	memdelete(da);
 
 	scan_total = 0;
-	update_script_classes_queued = false;
+	update_script_classes_queued.clear();
 	first_scan = true;
 	scan_changes_pending = false;
 	revalidate_import_files = false;

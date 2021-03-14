@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -43,7 +43,6 @@ void VisualInstance3D::_update_visibility() {
 		return;
 	}
 
-	_change_notify("visible");
 	RS::get_singleton()->instance_set_visible(get_instance(), is_visible_in_tree());
 }
 
@@ -135,7 +134,6 @@ RID VisualInstance3D::get_base() const {
 VisualInstance3D::VisualInstance3D() {
 	instance = RenderingServer::get_singleton()->instance_create();
 	RenderingServer::get_singleton()->instance_attach_object_instance_id(instance, get_instance_id());
-	layers = 1;
 	set_notify_transform(true);
 }
 
@@ -371,7 +369,7 @@ void GeometryInstance3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_gi_mode", "mode"), &GeometryInstance3D::set_gi_mode);
 	ClassDB::bind_method(D_METHOD("get_gi_mode"), &GeometryInstance3D::get_gi_mode);
 
-	ClassDB::bind_method(D_METHOD("set_lod_bias", "p_bias"), &GeometryInstance3D::set_lod_bias);
+	ClassDB::bind_method(D_METHOD("set_lod_bias", "bias"), &GeometryInstance3D::set_lod_bias);
 	ClassDB::bind_method(D_METHOD("get_lod_bias"), &GeometryInstance3D::get_lod_bias);
 
 	ClassDB::bind_method(D_METHOD("set_custom_aabb", "aabb"), &GeometryInstance3D::set_custom_aabb);
@@ -412,17 +410,5 @@ void GeometryInstance3D::_bind_methods() {
 }
 
 GeometryInstance3D::GeometryInstance3D() {
-	lod_min_distance = 0;
-	lod_max_distance = 0;
-	lod_min_hysteresis = 0;
-	lod_max_hysteresis = 0;
-
-	lod_bias = 1.0;
-
-	gi_mode = GI_MODE_DISABLED;
-	lightmap_scale = LIGHTMAP_SCALE_1X;
-
-	shadow_casting_setting = SHADOW_CASTING_SETTING_ON;
-	extra_cull_margin = 0;
 	//RS::get_singleton()->instance_geometry_set_baked_light_texture_index(get_instance(),0);
 }

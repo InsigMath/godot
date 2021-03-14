@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -78,6 +78,10 @@ public:
 	static OptimizeVertexCacheFunc optimize_vertex_cache_func;
 	typedef size_t (*SimplifyFunc)(unsigned int *destination, const unsigned int *indices, size_t index_count, const float *vertex_positions, size_t vertex_count, size_t vertex_positions_stride, size_t target_index_count, float target_error, float *r_error);
 	static SimplifyFunc simplify_func;
+	typedef float (*SimplifyScaleFunc)(const float *vertex_positions, size_t vertex_count, size_t vertex_positions_stride);
+	static SimplifyScaleFunc simplify_scale_func;
+	typedef size_t (*SimplifySloppyFunc)(unsigned int *destination, const unsigned int *indices, size_t index_count, const float *vertex_positions_data, size_t vertex_count, size_t vertex_positions_stride, size_t target_index_count, float target_error, float *out_result_error);
+	static SimplifySloppyFunc simplify_sloppy_func;
 
 private:
 	struct VertexHasher {
@@ -85,17 +89,17 @@ private:
 	};
 
 	struct WeightSort {
-		int index;
-		float weight;
+		int index = 0;
+		float weight = 0.0;
 		bool operator<(const WeightSort &p_right) const {
 			return weight < p_right.weight;
 		}
 	};
 
-	bool begun;
-	bool first;
-	Mesh::PrimitiveType primitive;
-	uint32_t format;
+	bool begun = false;
+	bool first = false;
+	Mesh::PrimitiveType primitive = Mesh::PRIMITIVE_LINES;
+	uint32_t format = 0;
 	Ref<Material> material;
 	//arrays
 	LocalVector<Vertex> vertex_array;
@@ -111,7 +115,7 @@ private:
 	Plane last_tangent;
 	uint32_t last_smooth_group = 0;
 
-	SkinWeightCount skin_weights;
+	SkinWeightCount skin_weights = SKIN_4_WEIGHTS;
 
 	Color last_custom[RS::ARRAY_CUSTOM_COUNT];
 

@@ -859,6 +859,12 @@
 				Tries to free an object in the RenderingServer.
 			</description>
 		</method>
+		<method name="get_frame_setup_time_cpu" qualifiers="const">
+			<return type="float">
+			</return>
+			<description>
+			</description>
+		</method>
 		<method name="get_render_info">
 			<return type="int">
 			</return>
@@ -1354,7 +1360,7 @@
 			<argument index="1" name="scenario" type="RID">
 			</argument>
 			<description>
-				Returns an array of object IDs intersecting with the provided AABB. Only visual 3D nodes are considered, such as [MeshInstance3D] or [DirectionalLight3D]. Use [method @GDScript.instance_from_id] to obtain the actual nodes. A scenario RID must be provided, which is available in the [World3D] you want to query. This forces an update for all resources queued to update.
+				Returns an array of object IDs intersecting with the provided AABB. Only visual 3D nodes are considered, such as [MeshInstance3D] or [DirectionalLight3D]. Use [method @GlobalScope.instance_from_id] to obtain the actual nodes. A scenario RID must be provided, which is available in the [World3D] you want to query. This forces an update for all resources queued to update.
 				[b]Warning:[/b] This function is primarily intended for editor usage. For in-game use cases, prefer physics collision.
 			</description>
 		</method>
@@ -1366,7 +1372,7 @@
 			<argument index="1" name="scenario" type="RID">
 			</argument>
 			<description>
-				Returns an array of object IDs intersecting with the provided convex shape. Only visual 3D nodes are considered, such as [MeshInstance3D] or [DirectionalLight3D]. Use [method @GDScript.instance_from_id] to obtain the actual nodes. A scenario RID must be provided, which is available in the [World3D] you want to query. This forces an update for all resources queued to update.
+				Returns an array of object IDs intersecting with the provided convex shape. Only visual 3D nodes are considered, such as [MeshInstance3D] or [DirectionalLight3D]. Use [method @GlobalScope.instance_from_id] to obtain the actual nodes. A scenario RID must be provided, which is available in the [World3D] you want to query. This forces an update for all resources queued to update.
 				[b]Warning:[/b] This function is primarily intended for editor usage. For in-game use cases, prefer physics collision.
 			</description>
 		</method>
@@ -1380,7 +1386,7 @@
 			<argument index="2" name="scenario" type="RID">
 			</argument>
 			<description>
-				Returns an array of object IDs intersecting with the provided 3D ray. Only visual 3D nodes are considered, such as [MeshInstance3D] or [DirectionalLight3D]. Use [method @GDScript.instance_from_id] to obtain the actual nodes. A scenario RID must be provided, which is available in the [World3D] you want to query. This forces an update for all resources queued to update.
+				Returns an array of object IDs intersecting with the provided 3D ray. Only visual 3D nodes are considered, such as [MeshInstance3D] or [DirectionalLight3D]. Use [method @GlobalScope.instance_from_id] to obtain the actual nodes. A scenario RID must be provided, which is available in the [World3D] you want to query. This forces an update for all resources queued to update.
 				[b]Warning:[/b] This function is primarily intended for editor usage. For in-game use cases, prefer physics collision.
 			</description>
 		</method>
@@ -1796,7 +1802,7 @@
 				Updates a specific region of a vertex buffer for the specified surface. Warning: this function alters the vertex buffer directly with no safety mechanisms, you can easily corrupt your mesh.
 			</description>
 		</method>
-		<method name="multimesh_allocate">
+		<method name="multimesh_allocate_data">
 			<return type="void">
 			</return>
 			<argument index="0" name="multimesh" type="RID">
@@ -2543,7 +2549,7 @@
 				Sets a shader's default texture. Overwrites the texture given by name.
 			</description>
 		</method>
-		<method name="skeleton_allocate">
+		<method name="skeleton_allocate_data">
 			<return type="void">
 			</return>
 			<argument index="0" name="skeleton" type="RID">
@@ -2553,7 +2559,6 @@
 			<argument index="2" name="is_2d_skeleton" type="bool" default="false">
 			</argument>
 			<description>
-				Allocates the GPU buffers for this skeleton.
 			</description>
 		</method>
 		<method name="skeleton_bone_get_transform" qualifiers="const">
@@ -2699,11 +2704,14 @@
 			<description>
 				Copies the viewport to a region of the screen specified by [code]rect[/code]. If [method viewport_set_render_direct_to_screen] is [code]true[/code], then the viewport does not use a framebuffer and the contents of the viewport are rendered directly to screen. However, note that the root viewport is drawn last, therefore it will draw over the screen. Accordingly, you must set the root viewport to an area that does not cover the area that you have attached this viewport to.
 				For example, you can set the root viewport to not render at all with the following code:
-				[codeblock]
+				FIXME: The method seems to be non-existent.
+				[codeblocks]
+				[gdscript]
 				func _ready():
 				    get_viewport().set_attach_to_screen_rect(Rect2())
 				    $Viewport.set_attach_to_screen_rect(Rect2(0, 0, 600, 600))
-				[/codeblock]
+				[/gdscript]
+				[/codeblocks]
 				Using this can result in significant optimization, especially on lower-end devices. However, it comes at the cost of having to manage your viewports manually. For a further optimization see, [method viewport_set_render_direct_to_screen].
 			</description>
 		</method>
@@ -2713,6 +2721,22 @@
 			<description>
 				Creates an empty viewport and adds it to the RenderingServer. It can be accessed with the RID that is returned. This RID will be used in all [code]viewport_*[/code] RenderingServer functions.
 				Once finished with your RID, you will want to free the RID using the RenderingServer's [method free_rid] static method.
+			</description>
+		</method>
+		<method name="viewport_get_measured_render_time_cpu" qualifiers="const">
+			<return type="float">
+			</return>
+			<argument index="0" name="viewport" type="RID">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="viewport_get_measured_render_time_gpu" qualifiers="const">
+			<return type="float">
+			</return>
+			<argument index="0" name="viewport" type="RID">
+			</argument>
+			<description>
 			</description>
 		</method>
 		<method name="viewport_get_render_info">
@@ -2852,6 +2876,16 @@
 				Currently unimplemented in Godot 3.x.
 			</description>
 		</method>
+		<method name="viewport_set_measure_render_time">
+			<return type="void">
+			</return>
+			<argument index="0" name="viewport" type="RID">
+			</argument>
+			<argument index="1" name="enable" type="bool">
+			</argument>
+			<description>
+			</description>
+		</method>
 		<method name="viewport_set_msaa">
 			<return type="void">
 			</return>
@@ -2916,6 +2950,8 @@
 			<argument index="0" name="viewport" type="RID">
 			</argument>
 			<argument index="1" name="size" type="int">
+			</argument>
+			<argument index="2" name="use_16_bits" type="bool" default="false">
 			</argument>
 			<description>
 				Sets the size of the shadow atlas's images (used for omni and spot lights). The value will be rounded up to the nearest power of 2.
@@ -3419,7 +3455,7 @@
 		<constant name="VIEWPORT_DEBUG_DRAW_GI_BUFFER" value="17" enum="ViewportDebugDraw">
 		</constant>
 		<constant name="SKY_MODE_QUALITY" value="1" enum="SkyMode">
-			Uses high quality importance sampling to process the radiance map. In general, this results in much higher quality than [constant Sky.PROCESS_MODE_REALTIME] but takes much longer to generate. This should not be used if you plan on changing the sky at runtime. If you are finding that the reflection is not blurry enough and is showing sparkles or fireflies, try increasing [member ProjectSettings.rendering/quality/reflections/ggx_samples].
+			Uses high quality importance sampling to process the radiance map. In general, this results in much higher quality than [constant Sky.PROCESS_MODE_REALTIME] but takes much longer to generate. This should not be used if you plan on changing the sky at runtime. If you are finding that the reflection is not blurry enough and is showing sparkles or fireflies, try increasing [member ProjectSettings.rendering/reflections/sky_reflections/ggx_samples].
 		</constant>
 		<constant name="SKY_MODE_REALTIME" value="3" enum="SkyMode">
 			Uses the fast filtering algorithm to process the radiance map. In general this results in lower quality, but substantially faster run times.

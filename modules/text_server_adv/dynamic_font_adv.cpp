@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -29,6 +29,8 @@
 /*************************************************************************/
 
 #include "dynamic_font_adv.h"
+
+#ifdef MODULE_FREETYPE_ENABLED
 
 #include FT_STROKER_H
 #include FT_ADVANCES_H
@@ -55,7 +57,7 @@ DynamicFontDataAdvanced::DataAtSize *DynamicFontDataAdvanced::get_data_for_size(
 		fds = E->get();
 	} else {
 		if (font_mem == nullptr && font_path != String()) {
-			if (!font_mem_cache.empty()) {
+			if (!font_mem_cache.is_empty()) {
 				font_mem = font_mem_cache.ptr();
 				font_mem_size = font_mem_cache.size();
 			} else {
@@ -124,10 +126,10 @@ DynamicFontDataAdvanced::DataAtSize *DynamicFontDataAdvanced::get_data_for_size(
 		fds->size = p_size;
 		fds->ascent = (fds->face->size->metrics.ascender / 64.0) / oversampling * fds->scale_color_font;
 		fds->descent = (-fds->face->size->metrics.descender / 64.0) / oversampling * fds->scale_color_font;
-		fds->underline_position = -fds->face->underline_position / 64.0 / oversampling * fds->scale_color_font;
-		fds->underline_thickness = fds->face->underline_thickness / 64.0 / oversampling * fds->scale_color_font;
+		fds->underline_position = (-FT_MulFix(fds->face->underline_position, fds->face->size->metrics.y_scale) / 64.0) / oversampling * fds->scale_color_font;
+		fds->underline_thickness = (FT_MulFix(fds->face->underline_thickness, fds->face->size->metrics.y_scale) / 64.0) / oversampling * fds->scale_color_font;
 
-		//Load os2 TTF pable
+		//Load os2 TTF table
 		fds->os2 = (TT_OS2 *)FT_Get_Sfnt_Table(fds->face, FT_SFNT_OS2);
 
 		fds->hb_handle = hb_ft_font_create(fds->face, nullptr);
@@ -171,7 +173,7 @@ DynamicFontDataAdvanced::DataAtSize *DynamicFontDataAdvanced::get_data_for_size(
 			}
 
 			FT_Set_Var_Design_Coordinates(fds->face, coords.size(), coords.ptrw());
-			hb_font_set_variations(fds->hb_handle, hb_vars.empty() ? nullptr : &hb_vars[0], hb_vars.size());
+			hb_font_set_variations(fds->hb_handle, hb_vars.is_empty() ? nullptr : &hb_vars[0], hb_vars.size());
 
 			FT_Done_MM_Var(library, amaster);
 		}
@@ -946,7 +948,7 @@ Vector2 DynamicFontDataAdvanced::draw_glyph(RID p_canvas, int p_size, const Vect
 		ERR_FAIL_COND_V(ch.texture_idx < -1 || ch.texture_idx >= fds->textures.size(), Vector2());
 
 		if (ch.texture_idx != -1) {
-			Point2 cpos = p_pos;
+			Point2i cpos = p_pos;
 			cpos += ch.align;
 			Color modulate = p_color;
 			if (FT_HAS_COLOR(fds->face)) {
@@ -977,7 +979,7 @@ Vector2 DynamicFontDataAdvanced::draw_glyph_outline(RID p_canvas, int p_size, in
 		ERR_FAIL_COND_V(ch.texture_idx < -1 || ch.texture_idx >= fds->textures.size(), Vector2());
 
 		if (ch.texture_idx != -1) {
-			Point2 cpos = p_pos;
+			Point2i cpos = p_pos;
 			cpos += ch.align;
 			Color modulate = p_color;
 			if (FT_HAS_COLOR(fds->face)) {
@@ -1001,3 +1003,5 @@ DynamicFontDataAdvanced::~DynamicFontDataAdvanced() {
 		FT_Done_FreeType(library);
 	}
 }
+
+#endif // MODULE_FREETYPE_ENABLED

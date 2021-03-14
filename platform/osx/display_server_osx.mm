@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -256,9 +256,7 @@ static NSCursor *_cursorFromSelector(SEL selector, SEL fallback = nil) {
 		List<String> args;
 		args.push_back(((OS_OSX *)(OS_OSX::get_singleton()))->open_with_filename);
 		String exec = OS::get_singleton()->get_executable_path();
-
-		OS::ProcessID pid = 0;
-		OS::get_singleton()->execute(exec, args, false, &pid);
+		OS::get_singleton()->create_process(exec, args);
 	}
 #endif
 	return YES;
@@ -751,28 +749,32 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 	ERR_FAIL_COND_V(!DS_OSX->windows.has(window_id), NO);
 	DisplayServerOSX::WindowData &wd = DS_OSX->windows[window_id];
 
-	NSPasteboard *pboard = [sender draggingPasteboard];
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
-	NSArray<NSURL *> *filenames = [pboard propertyListForType:NSPasteboardTypeFileURL];
-#else
-	NSArray *filenames = [pboard propertyListForType:NSFilenamesPboardType];
-#endif
-
-	Vector<String> files;
-	for (NSUInteger i = 0; i < filenames.count; i++) {
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
-		NSString *ns = [[filenames objectAtIndex:i] path];
-#else
-		NSString *ns = [filenames objectAtIndex:i];
-#endif
-		char *utfs = strdup([ns UTF8String]);
-		String ret;
-		ret.parse_utf8(utfs);
-		free(utfs);
-		files.push_back(ret);
-	}
-
 	if (!wd.drop_files_callback.is_null()) {
+		Vector<String> files;
+		NSPasteboard *pboard = [sender draggingPasteboard];
+
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 101400
+		NSArray *items = pboard.pasteboardItems;
+		for (NSPasteboardItem *item in items) {
+			NSString *path = [item stringForType:NSPasteboardTypeFileURL];
+			NSString *ns = [NSURL URLWithString:path].path;
+			char *utfs = strdup([ns UTF8String]);
+			String ret;
+			ret.parse_utf8(utfs);
+			free(utfs);
+			files.push_back(ret);
+		}
+#else
+		NSArray *filenames = [pboard propertyListForType:NSFilenamesPboardType];
+		for (NSString *ns in filenames) {
+			char *utfs = strdup([ns UTF8String]);
+			String ret;
+			ret.parse_utf8(utfs);
+			free(utfs);
+			files.push_back(ret);
+		}
+#endif
+
 		Variant v = files;
 		Variant *vp = &v;
 		Variant ret;
@@ -868,6 +870,15 @@ static void _mouseDownEvent(DisplayServer::WindowID window_id, NSEvent *event, i
 
 	NSPoint delta = NSMakePoint([event deltaX], [event deltaY]);
 	NSPoint mpos = [event locationInWindow];
+
+	if (DS_OSX->ignore_warp) {
+		// Discard late events, before warp
+		if (([event timestamp]) < DS_OSX->last_warp) {
+			return;
+		}
+		DS_OSX->ignore_warp = false;
+		return;
+	}
 
 	if (DS_OSX->mouse_mode == DisplayServer::MOUSE_MODE_CONFINED) {
 		// Discard late events
@@ -2096,6 +2107,8 @@ void DisplayServerOSX::mouse_set_mode(MouseMode p_mode) {
 		CGAssociateMouseAndMouseCursorPosition(true);
 	}
 
+	last_warp = [[NSProcessInfo processInfo] systemUptime];
+	ignore_warp = true;
 	warp_events.clear();
 	mouse_mode = p_mode;
 }

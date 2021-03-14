@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -286,7 +286,7 @@ public:
 
 	struct AssertNode : public Node {
 		ExpressionNode *condition = nullptr;
-		LiteralNode *message = nullptr;
+		ExpressionNode *message = nullptr;
 
 		AssertNode() {
 			type = ASSERT;
@@ -351,7 +351,7 @@ public:
 			OP_COMP_GREATER_EQUAL,
 		};
 
-		OpType operation;
+		OpType operation = OpType::OP_ADDITION;
 		Variant::Operator variant_op = Variant::OP_MAX;
 		ExpressionNode *left_operand = nullptr;
 		ExpressionNode *right_operand = nullptr;
@@ -753,7 +753,7 @@ public:
 
 	struct MatchBranchNode : public Node {
 		Vector<PatternNode *> patterns;
-		SuiteNode *block;
+		SuiteNode *block = nullptr;
 		bool has_wildcard = false;
 
 		MatchBranchNode() {
@@ -1001,7 +1001,7 @@ public:
 			OP_LOGIC_NOT,
 		};
 
-		OpType operation;
+		OpType operation = OP_POSITIVE;
 		Variant::Operator variant_op = Variant::OP_MAX;
 		ExpressionNode *operand = nullptr;
 
@@ -1172,8 +1172,7 @@ private:
 		PREC_BIT_XOR,
 		PREC_BIT_AND,
 		PREC_BIT_SHIFT,
-		PREC_SUBTRACTION,
-		PREC_ADDITION,
+		PREC_ADDITION_SUBTRACTION,
 		PREC_FACTOR,
 		PREC_SIGN,
 		PREC_BIT_NOT,
@@ -1286,6 +1285,7 @@ private:
 	ExpressionNode *parse_builtin_constant(ExpressionNode *p_previous_operand, bool p_can_assign);
 	ExpressionNode *parse_unary_operator(ExpressionNode *p_previous_operand, bool p_can_assign);
 	ExpressionNode *parse_binary_operator(ExpressionNode *p_previous_operand, bool p_can_assign);
+	ExpressionNode *parse_binary_not_in_operator(ExpressionNode *p_previous_operand, bool p_can_assign);
 	ExpressionNode *parse_ternary_operator(ExpressionNode *p_previous_operand, bool p_can_assign);
 	ExpressionNode *parse_assignment(ExpressionNode *p_previous_operand, bool p_can_assign);
 	ExpressionNode *parse_array(ExpressionNode *p_previous_operand, bool p_can_assign);

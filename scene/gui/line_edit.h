@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -94,7 +94,7 @@ private:
 	Point2 ime_selection;
 
 	RID text_rid;
-	float full_width = 0;
+	float full_width = 0.0;
 
 	bool selecting_enabled = true;
 
@@ -129,19 +129,20 @@ private:
 	Ref<Texture2D> right_icon;
 
 	struct Selection {
-		int begin;
-		int end;
-		int cursor_start;
-		bool enabled;
-		bool creating;
-		bool doubleclick;
-		bool drag_attempt;
+		int begin = 0;
+		int end = 0;
+		int cursor_start = 0;
+		bool enabled = false;
+		bool creating = false;
+		bool doubleclick = false;
+		bool drag_attempt = false;
+		uint64_t last_dblclk = 0;
 	} selection;
 
 	struct TextOperation {
-		int cursor_pos;
-		int scroll_offset;
-		int cached_width;
+		int cursor_pos = 0;
+		int scroll_offset = 0;
+		int cached_width = 0;
 		String text;
 	};
 	List<TextOperation> undo_stack;
@@ -163,6 +164,7 @@ private:
 	void _clear_redo();
 	void _create_undo_state();
 
+	int _get_menu_action_accelerator(const String &p_action);
 	void _generate_context_menu();
 
 	void _shape();
@@ -188,15 +190,23 @@ private:
 
 	void _editor_settings_changed();
 
-	void _gui_input(Ref<InputEvent> p_event);
-	void _notification(int p_what);
+	void _swap_current_input_direction();
+	void _move_cursor_left(bool p_select, bool p_move_by_word = false);
+	void _move_cursor_right(bool p_select, bool p_move_by_word = false);
+	void _move_cursor_start(bool p_select);
+	void _move_cursor_end(bool p_select);
+	void _backspace(bool p_word = false, bool p_all_to_left = false);
+	void _delete(bool p_word = false, bool p_all_to_right = false);
 
 protected:
+	void _notification(int p_what);
 	static void _bind_methods();
+	void _gui_input(Ref<InputEvent> p_event);
 
 	bool _set(const StringName &p_name, const Variant &p_value);
 	bool _get(const StringName &p_name, Variant &r_ret) const;
 	void _get_property_list(List<PropertyInfo> *p_list) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	void set_align(Align p_align);
@@ -306,6 +316,9 @@ public:
 	Ref<Texture2D> get_right_icon();
 
 	virtual bool is_text_field() const override;
+
+	void show_virtual_keyboard();
+
 	LineEdit();
 	~LineEdit();
 };

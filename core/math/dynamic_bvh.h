@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -34,6 +34,7 @@
 #include "core/math/aabb.h"
 #include "core/templates/list.h"
 #include "core/templates/local_vector.h"
+#include "core/templates/paged_allocator.h"
 #include "core/typedefs.h"
 
 // Based on bullet Dbvh
@@ -61,13 +62,10 @@ class DynamicBVH {
 
 public:
 	struct ID {
-		Node *node;
+		Node *node = nullptr;
 
 	public:
 		_FORCE_INLINE_ bool is_valid() const { return node != nullptr; }
-		_FORCE_INLINE_ ID() {
-			node = nullptr;
-		}
 	};
 
 private:
@@ -134,6 +132,48 @@ private:
 					(min.z <= b.max.z) &&
 					(max.z >= b.min.z));
 		}
+
+		_FORCE_INLINE_ bool intersects_convex(const Plane *p_planes, int p_plane_count, const Vector3 *p_points, int p_point_count) const {
+			Vector3 half_extents = (max - min) * 0.5;
+			Vector3 ofs = min + half_extents;
+
+			for (int i = 0; i < p_plane_count; i++) {
+				const Plane &p = p_planes[i];
+				Vector3 point(
+						(p.normal.x > 0) ? -half_extents.x : half_extents.x,
+						(p.normal.y > 0) ? -half_extents.y : half_extents.y,
+						(p.normal.z > 0) ? -half_extents.z : half_extents.z);
+				point += ofs;
+				if (p.is_point_over(point)) {
+					return false;
+				}
+			}
+
+			// Make sure all points in the shape aren't fully separated from the AABB on
+			// each axis.
+			int bad_point_counts_positive[3] = { 0 };
+			int bad_point_counts_negative[3] = { 0 };
+
+			for (int k = 0; k < 3; k++) {
+				for (int i = 0; i < p_point_count; i++) {
+					if (p_points[i].coord[k] > ofs.coord[k] + half_extents.coord[k]) {
+						bad_point_counts_positive[k]++;
+					}
+					if (p_points[i].coord[k] < ofs.coord[k] - half_extents.coord[k]) {
+						bad_point_counts_negative[k]++;
+					}
+				}
+
+				if (bad_point_counts_negative[k] == p_point_count) {
+					return false;
+				}
+				if (bad_point_counts_positive[k] == p_point_count) {
+					return false;
+				}
+			}
+
+			return true;
+		}
 	};
 
 	struct Node {
@@ -144,14 +184,14 @@ private:
 			void *data;
 		};
 
-		_FORCE_INLINE_ bool is_leaf() const { return data != nullptr; }
+		_FORCE_INLINE_ bool is_leaf() const { return childs[1] == nullptr; }
 		_FORCE_INLINE_ bool is_internal() const { return (!is_leaf()); }
 
 		_FORCE_INLINE_ int get_index_in_parent() const {
 			ERR_FAIL_COND_V(!parent, 0);
 			return (parent->childs[1] == this) ? 1 : 0;
 		}
-		_FORCE_INLINE_ void get_max_depth(int depth, int &maxdepth) {
+		void get_max_depth(int depth, int &maxdepth) {
 			if (is_internal()) {
 				childs[0]->get_max_depth(depth + 1, maxdepth);
 				childs[1]->get_max_depth(depth + 1, maxdepth);
@@ -178,11 +218,13 @@ private:
 		}
 	};
 
+	PagedAllocator<Node> node_allocator;
 	// Fields
 	Node *bvh_root = nullptr;
 	int lkhd = -1;
 	int total_leaves = 0;
 	uint32_t opath = 0;
+	uint32_t index = 0;
 
 	enum {
 		ALLOCA_STACK_SIZE = 128
@@ -236,14 +278,17 @@ private:
 public:
 	// Methods
 	void clear();
-	bool empty() const { return (0 == bvh_root); }
+	bool is_empty() const { return (0 == bvh_root); }
 	void optimize_bottom_up();
 	void optimize_top_down(int bu_threshold = 128);
 	void optimize_incremental(int passes);
 	ID insert(const AABB &p_box, void *p_userdata);
-	void update(const ID &p_id, const AABB &p_box);
+	bool update(const ID &p_id, const AABB &p_box);
 	void remove(const ID &p_id);
 	void get_elements(List<ID> *r_elements);
+
+	int get_leaf_count() const;
+	int get_max_depth() const;
 
 	/* Discouraged, but works as a reference on how it must be used */
 	struct DefaultQueryResult {
@@ -254,9 +299,13 @@ public:
 	template <class QueryResult>
 	_FORCE_INLINE_ void aabb_query(const AABB &p_aabb, QueryResult &r_result);
 	template <class QueryResult>
+	_FORCE_INLINE_ void convex_query(const Plane *p_planes, int p_plane_count, const Vector3 *p_points, int p_point_count, QueryResult &r_result);
+	template <class QueryResult>
 	_FORCE_INLINE_ void ray_query(const Vector3 &p_from, const Vector3 &p_to, QueryResult &r_result);
 
-	DynamicBVH();
+	void set_index(uint32_t p_index);
+	uint32_t get_index() const;
+
 	~DynamicBVH();
 };
 
@@ -278,12 +327,12 @@ void DynamicBVH::aabb_query(const AABB &p_box, QueryResult &r_result) {
 	LocalVector<const Node *> aux_stack; //only used in rare occasions when you run out of alloca memory because tree is too unbalanced. Should correct itself over time.
 
 	do {
-		const Node *n = stack[depth - 1];
 		depth--;
+		const Node *n = stack[depth];
 		if (n->volume.intersects(volume)) {
 			if (n->is_internal()) {
 				if (depth > threshold) {
-					if (aux_stack.empty()) {
+					if (aux_stack.is_empty()) {
 						aux_stack.resize(ALLOCA_STACK_SIZE * 2);
 						copymem(aux_stack.ptr(), stack, ALLOCA_STACK_SIZE * sizeof(const Node *));
 					} else {
@@ -304,7 +353,66 @@ void DynamicBVH::aabb_query(const AABB &p_box, QueryResult &r_result) {
 }
 
 template <class QueryResult>
+void DynamicBVH::convex_query(const Plane *p_planes, int p_plane_count, const Vector3 *p_points, int p_point_count, QueryResult &r_result) {
+	if (!bvh_root) {
+		return;
+	}
+
+	//generate a volume anyway to improve pre-testing
+	Volume volume;
+	for (int i = 0; i < p_point_count; i++) {
+		if (i == 0) {
+			volume.min = p_points[0];
+			volume.max = p_points[0];
+		} else {
+			volume.min.x = MIN(volume.min.x, p_points[i].x);
+			volume.min.y = MIN(volume.min.y, p_points[i].y);
+			volume.min.z = MIN(volume.min.z, p_points[i].z);
+
+			volume.max.x = MAX(volume.max.x, p_points[i].x);
+			volume.max.y = MAX(volume.max.y, p_points[i].y);
+			volume.max.z = MAX(volume.max.z, p_points[i].z);
+		}
+	}
+
+	const Node **stack = (const Node **)alloca(ALLOCA_STACK_SIZE * sizeof(const Node *));
+	stack[0] = bvh_root;
+	int32_t depth = 1;
+	int32_t threshold = ALLOCA_STACK_SIZE - 2;
+
+	LocalVector<const Node *> aux_stack; //only used in rare occasions when you run out of alloca memory because tree is too unbalanced. Should correct itself over time.
+
+	do {
+		depth--;
+		const Node *n = stack[depth];
+		if (n->volume.intersects(volume) && n->volume.intersects_convex(p_planes, p_plane_count, p_points, p_point_count)) {
+			if (n->is_internal()) {
+				if (depth > threshold) {
+					if (aux_stack.is_empty()) {
+						aux_stack.resize(ALLOCA_STACK_SIZE * 2);
+						copymem(aux_stack.ptr(), stack, ALLOCA_STACK_SIZE * sizeof(const Node *));
+					} else {
+						aux_stack.resize(aux_stack.size() * 2);
+					}
+					stack = aux_stack.ptr();
+					threshold = aux_stack.size() - 2;
+				}
+				stack[depth++] = n->childs[0];
+				stack[depth++] = n->childs[1];
+			} else {
+				if (r_result(n->data)) {
+					return;
+				}
+			}
+		}
+	} while (depth > 0);
+}
+template <class QueryResult>
 void DynamicBVH::ray_query(const Vector3 &p_from, const Vector3 &p_to, QueryResult &r_result) {
+	if (!bvh_root) {
+		return;
+	}
+
 	Vector3 ray_dir = (p_to - p_from);
 	ray_dir.normalize();
 
@@ -327,7 +435,8 @@ void DynamicBVH::ray_query(const Vector3 &p_from, const Vector3 &p_to, QueryResu
 	LocalVector<const Node *> aux_stack; //only used in rare occasions when you run out of alloca memory because tree is too unbalanced. Should correct itself over time.
 
 	do {
-		const Node *node = stack[--depth];
+		depth--;
+		const Node *node = stack[depth];
 		bounds[0] = node->volume.min;
 		bounds[1] = node->volume.max;
 		real_t tmin = 1.f, lambda_min = 0.f;
@@ -336,7 +445,7 @@ void DynamicBVH::ray_query(const Vector3 &p_from, const Vector3 &p_to, QueryResu
 		if (result1) {
 			if (node->is_internal()) {
 				if (depth > threshold) {
-					if (aux_stack.empty()) {
+					if (aux_stack.is_empty()) {
 						aux_stack.resize(ALLOCA_STACK_SIZE * 2);
 						copymem(aux_stack.ptr(), stack, ALLOCA_STACK_SIZE * sizeof(const Node *));
 					} else {

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,6 +32,7 @@
 
 #include "core/config/project_settings.h"
 #include "core/io/resource_loader.h"
+#include "core/os/keyboard.h"
 #include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
 #include "scene/3d/sprite_3d.h"
@@ -218,7 +219,8 @@ void SpriteFramesEditor::_sheet_zoom_out() {
 }
 
 void SpriteFramesEditor::_sheet_zoom_reset() {
-	sheet_zoom = 1.f;
+	// Default the zoom to match the editor scale, but don't dezoom on editor scales below 100% to prevent pixel art from looking bad.
+	sheet_zoom = MAX(1.0, EDSCALE);
 	Size2 texture_size = split_sheet_preview->get_texture()->get_size();
 	split_sheet_preview->set_custom_minimum_size(texture_size * sheet_zoom);
 }
@@ -318,7 +320,7 @@ void SpriteFramesEditor::_file_load_request(const Vector<String> &p_path, int p_
 		resources.push_back(resource);
 	}
 
-	if (resources.empty()) {
+	if (resources.is_empty()) {
 		return;
 	}
 
@@ -731,7 +733,7 @@ void SpriteFramesEditor::_zoom_out() {
 }
 
 void SpriteFramesEditor::_zoom_reset() {
-	thumbnail_zoom = 1.0f;
+	thumbnail_zoom = MAX(1.0, EDSCALE);
 	tree->set_fixed_column_width(thumbnail_default_size * 3 / 2);
 	tree->set_fixed_icon_size(Size2(thumbnail_default_size, thumbnail_default_size));
 }
@@ -952,7 +954,11 @@ void SpriteFramesEditor::drop_data_fw(const Point2 &p_point, const Variant &p_da
 	if (String(d["type"]) == "files") {
 		Vector<String> files = d["files"];
 
-		_file_load_request(files, at_pos);
+		if (Input::get_singleton()->is_key_pressed(KEY_CONTROL)) {
+			_prepare_sprite_sheet(files[0]);
+		} else {
+			_file_load_request(files, at_pos);
+		}
 	}
 }
 
@@ -1224,13 +1230,14 @@ SpriteFramesEditor::SpriteFramesEditor() {
 
 	// Config scale.
 	scale_ratio = 1.2f;
-	thumbnail_default_size = 96;
-	thumbnail_zoom = 1.0f;
-	max_thumbnail_zoom = 8.0f;
-	min_thumbnail_zoom = 0.1f;
-	sheet_zoom = 1.0f;
-	max_sheet_zoom = 16.0f;
-	min_sheet_zoom = 0.01f;
+	thumbnail_default_size = 96 * MAX(1.0, EDSCALE);
+	thumbnail_zoom = MAX(1.0, EDSCALE);
+	max_thumbnail_zoom = 8.0f * MAX(1.0, EDSCALE);
+	min_thumbnail_zoom = 0.1f * MAX(1.0, EDSCALE);
+	// Default the zoom to match the editor scale, but don't dezoom on editor scales below 100% to prevent pixel art from looking bad.
+	sheet_zoom = MAX(1.0, EDSCALE);
+	max_sheet_zoom = 16.0f * MAX(1.0, EDSCALE);
+	min_sheet_zoom = 0.01f * MAX(1.0, EDSCALE);
 	_zoom_reset();
 }
 

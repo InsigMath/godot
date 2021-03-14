@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,10 +31,10 @@
 #ifndef NAV_REGION_H
 #define NAV_REGION_H
 
-#include "nav_rid.h"
+#include "scene/resources/navigation_mesh.h"
 
+#include "nav_rid.h"
 #include "nav_utils.h"
-#include "scene/3d/navigation_3d.h"
 #include <vector>
 
 /**
@@ -48,6 +48,7 @@ class NavRegion : public NavRid {
 	NavMap *map = nullptr;
 	Transform transform;
 	Ref<NavigationMesh> mesh;
+	uint32_t layers = 1;
 
 	bool polygons_dirty = true;
 
@@ -65,6 +66,9 @@ public:
 	NavMap *get_map() const {
 		return map;
 	}
+
+	void set_layers(uint32_t p_layers);
+	uint32_t get_layers() const;
 
 	void set_transform(Transform transform);
 	const Transform &get_transform() const {

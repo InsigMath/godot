@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -78,8 +78,8 @@ public:
 	void set_over_texture(const Ref<Texture2D> &p_texture);
 	Ref<Texture2D> get_over_texture() const;
 
-	void set_stretch_margin(Margin p_margin, int p_size);
-	int get_stretch_margin(Margin p_margin) const;
+	void set_stretch_margin(Side p_side, int p_size);
+	int get_stretch_margin(Side p_side) const;
 
 	void set_nine_patch_stretch(bool p_stretch);
 	bool get_nine_patch_stretch() const;
@@ -98,13 +98,15 @@ public:
 	TextureProgressBar();
 
 private:
-	FillMode mode;
-	float rad_init_angle;
-	float rad_max_degrees;
+	FillMode mode = FILL_LEFT_TO_RIGHT;
+	float rad_init_angle = 0.0;
+	float rad_max_degrees = 360.0;
 	Point2 rad_center_off;
-	bool nine_patch_stretch;
-	int stretch_margin[4];
-	Color tint_under, tint_progress, tint_over;
+	bool nine_patch_stretch = false;
+	int stretch_margin[4] = {};
+	Color tint_under = Color(1, 1, 1);
+	Color tint_progress = Color(1, 1, 1);
+	Color tint_over = Color(1, 1, 1);
 
 	Point2 unit_val_to_uv(float val);
 	Point2 get_relative_center();

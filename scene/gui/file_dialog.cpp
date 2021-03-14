@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -50,20 +50,20 @@ VBoxContainer *FileDialog::get_vbox() {
 
 void FileDialog::_theme_changed() {
 	Color font_color = vbox->get_theme_color("font_color", "Button");
-	Color font_color_hover = vbox->get_theme_color("font_color_hover", "Button");
-	Color font_color_pressed = vbox->get_theme_color("font_color_pressed", "Button");
+	Color font_hover_color = vbox->get_theme_color("font_hover_color", "Button");
+	Color font_pressed_color = vbox->get_theme_color("font_pressed_color", "Button");
 
-	dir_up->add_theme_color_override("icon_color_normal", font_color);
-	dir_up->add_theme_color_override("icon_color_hover", font_color_hover);
-	dir_up->add_theme_color_override("icon_color_pressed", font_color_pressed);
+	dir_up->add_theme_color_override("icon_normal_color", font_color);
+	dir_up->add_theme_color_override("icon_hover_color", font_hover_color);
+	dir_up->add_theme_color_override("icon_pressed_color", font_pressed_color);
 
-	refresh->add_theme_color_override("icon_color_normal", font_color);
-	refresh->add_theme_color_override("icon_color_hover", font_color_hover);
-	refresh->add_theme_color_override("icon_color_pressed", font_color_pressed);
+	refresh->add_theme_color_override("icon_normal_color", font_color);
+	refresh->add_theme_color_override("icon_hover_color", font_hover_color);
+	refresh->add_theme_color_override("icon_pressed_color", font_pressed_color);
 
-	show_hidden->add_theme_color_override("icon_color_normal", font_color);
-	show_hidden->add_theme_color_override("icon_color_hover", font_color_hover);
-	show_hidden->add_theme_color_override("icon_color_pressed", font_color_pressed);
+	show_hidden->add_theme_color_override("icon_normal_color", font_color);
+	show_hidden->add_theme_color_override("icon_hover_color", font_hover_color);
+	show_hidden->add_theme_color_override("icon_pressed_color", font_pressed_color);
 }
 
 void FileDialog::_notification(int p_what) {
@@ -136,7 +136,7 @@ void FileDialog::update_dir() {
 	}
 
 	// Deselect any item, to make "Select Current Folder" button text by default.
-	deselect_items();
+	deselect_all();
 }
 
 void FileDialog::_dir_entered(String p_dir) {
@@ -172,7 +172,7 @@ void FileDialog::_post_popup() {
 
 	// For open dir mode, deselect all items on file dialog open.
 	if (mode == FILE_MODE_OPEN_DIR) {
-		deselect_items();
+		deselect_all();
 		file_box->set_visible(false);
 	} else {
 		file_box->set_visible(true);
@@ -318,7 +318,7 @@ void FileDialog::_go_up() {
 	update_dir();
 }
 
-void FileDialog::deselect_items() {
+void FileDialog::deselect_all() {
 	// Clear currently selected items in file manager.
 	tree->deselect_all();
 
@@ -434,7 +434,7 @@ void FileDialog::update_file_list() {
 	dirs.sort_custom<NaturalNoCaseComparator>();
 	files.sort_custom<NaturalNoCaseComparator>();
 
-	while (!dirs.empty()) {
+	while (!dirs.is_empty()) {
 		String &dir_name = dirs.front()->get();
 		TreeItem *ti = tree->create_item(root);
 		ti->set_text(0, dir_name);
@@ -478,8 +478,8 @@ void FileDialog::update_file_list() {
 
 	String base_dir = dir_access->get_current_dir();
 
-	while (!files.empty()) {
-		bool match = patterns.empty();
+	while (!files.is_empty()) {
+		bool match = patterns.is_empty();
 		String match_str;
 
 		for (List<String>::Element *E = patterns.front(); E; E = E->next()) {
@@ -731,9 +731,9 @@ FileDialog::Access FileDialog::get_access() const {
 }
 
 void FileDialog::_make_dir_confirm() {
-	Error err = dir_access->make_dir(makedirname->get_text());
+	Error err = dir_access->make_dir(makedirname->get_text().strip_edges());
 	if (err == OK) {
-		dir_access->change_dir(makedirname->get_text());
+		dir_access->change_dir(makedirname->get_text().strip_edges());
 		invalidate();
 		update_filters();
 		update_dir();
@@ -808,7 +808,7 @@ void FileDialog::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_update_file_name"), &FileDialog::update_file_name);
 	ClassDB::bind_method(D_METHOD("_update_dir"), &FileDialog::update_dir);
 	ClassDB::bind_method(D_METHOD("_update_file_list"), &FileDialog::update_file_list);
-	ClassDB::bind_method(D_METHOD("deselect_items"), &FileDialog::deselect_items);
+	ClassDB::bind_method(D_METHOD("deselect_all"), &FileDialog::deselect_all);
 
 	ClassDB::bind_method(D_METHOD("invalidate"), &FileDialog::invalidate);
 
@@ -851,8 +851,6 @@ void FileDialog::set_default_show_hidden_files(bool p_show) {
 
 FileDialog::FileDialog() {
 	show_hidden_files = default_show_hidden_files;
-
-	mode_overrides_title = true;
 
 	vbox = memnew(VBoxContainer);
 	add_child(vbox);
@@ -925,14 +923,13 @@ FileDialog::FileDialog() {
 	vbox->add_child(file_box);
 
 	dir_access = DirAccess::create(DirAccess::ACCESS_RESOURCES);
-	access = ACCESS_RESOURCES;
 	_update_drives();
 
 	connect("confirmed", callable_mp(this, &FileDialog::_action_pressed));
 	tree->connect("multi_selected", callable_mp(this, &FileDialog::_tree_multi_selected), varray(), CONNECT_DEFERRED);
 	tree->connect("cell_selected", callable_mp(this, &FileDialog::_tree_selected), varray(), CONNECT_DEFERRED);
 	tree->connect("item_activated", callable_mp(this, &FileDialog::_tree_item_activated), varray());
-	tree->connect("nothing_selected", callable_mp(this, &FileDialog::deselect_items));
+	tree->connect("nothing_selected", callable_mp(this, &FileDialog::deselect_all));
 	dir->connect("text_entered", callable_mp(this, &FileDialog::_dir_entered));
 	file->connect("text_entered", callable_mp(this, &FileDialog::_file_entered));
 	filter->connect("item_selected", callable_mp(this, &FileDialog::_filter_selected));
@@ -967,7 +964,6 @@ FileDialog::FileDialog() {
 
 	set_hide_on_ok(false);
 
-	invalidated = true;
 	if (register_func) {
 		register_func(this);
 	}

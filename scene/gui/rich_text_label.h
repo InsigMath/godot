@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -76,11 +76,14 @@ public:
 		ITEM_TORNADO,
 		ITEM_RAINBOW,
 		ITEM_META,
+		ITEM_DROPCAP,
 		ITEM_CUSTOMFX
 	};
 
 protected:
+	void _notification(int p_what);
 	static void _bind_methods();
+	void _validate_property(PropertyInfo &property) const override;
 
 private:
 	struct Item;
@@ -89,6 +92,9 @@ private:
 		Item *from = nullptr;
 
 		Ref<TextParagraph> text_buf;
+		Color dc_color;
+		int dc_ol_size = 0;
+		Color dc_ol_color;
 
 		Vector2 offset;
 		int char_offset = 0;
@@ -138,6 +144,17 @@ private:
 	struct ItemText : public Item {
 		String text;
 		ItemText() { type = ITEM_TEXT; }
+	};
+
+	struct ItemDropcap : public Item {
+		String text;
+		Ref<Font> font;
+		int font_size = 0;
+		Color color;
+		int ol_size = 0;
+		Color ol_color;
+		Rect2 dropcap_margins;
+		ItemDropcap() { type = ITEM_DROPCAP; }
 	};
 
 	struct ItemImage : public Item {
@@ -217,11 +234,11 @@ private:
 
 	struct ItemTable : public Item {
 		struct Column {
-			bool expand;
-			int expand_ratio;
-			int min_width;
-			int max_width;
-			int width;
+			bool expand = false;
+			int expand_ratio = 0;
+			int min_width = 0;
+			int max_width = 0;
+			int width = 0;
 		};
 
 		Vector<Column> columns;
@@ -307,30 +324,31 @@ private:
 		}
 	};
 
-	ItemFrame *main;
-	Item *current;
-	ItemFrame *current_frame;
+	ItemFrame *main = nullptr;
+	Item *current = nullptr;
+	ItemFrame *current_frame = nullptr;
 
-	VScrollBar *vscroll;
+	VScrollBar *vscroll = nullptr;
 
-	bool scroll_visible;
-	bool scroll_follow;
-	bool scroll_following;
-	bool scroll_active;
-	int scroll_w;
-	bool scroll_updated;
-	bool updating_scroll;
+	bool scroll_visible = false;
+	bool scroll_follow = false;
+	bool scroll_following = false;
+	bool scroll_active = true;
+	int scroll_w = 0;
+	bool scroll_updated = false;
+	bool updating_scroll = false;
 	int current_idx = 1;
 	int current_char_ofs = 0;
-	int visible_line_count;
+	int visible_paragraph_count = 0;
+	int visible_line_count = 0;
 
-	int tab_size;
-	bool underline_meta;
-	bool override_selected_font_color;
+	int tab_size = 4;
+	bool underline_meta = true;
+	bool override_selected_font_color = false;
 
-	Align default_align;
+	Align default_align = ALIGN_LEFT;
 
-	ItemMeta *meta_hovering;
+	ItemMeta *meta_hovering = nullptr;
 	Variant current_meta;
 
 	Vector<Ref<RichTextEffect>> custom_effects;
@@ -347,38 +365,38 @@ private:
 	Array st_args;
 
 	struct Selection {
-		ItemFrame *click_frame;
-		int click_line;
-		Item *click_item;
-		int click_char;
+		ItemFrame *click_frame = nullptr;
+		int click_line = 0;
+		Item *click_item = nullptr;
+		int click_char = 0;
 
-		ItemFrame *from_frame;
-		int from_line;
-		Item *from_item;
-		int from_char;
+		ItemFrame *from_frame = nullptr;
+		int from_line = 0;
+		Item *from_item = nullptr;
+		int from_char = 0;
 
-		ItemFrame *to_frame;
-		int to_line;
-		Item *to_item;
-		int to_char;
+		ItemFrame *to_frame = nullptr;
+		int to_line = 0;
+		Item *to_item = nullptr;
+		int to_char = 0;
 
-		bool active; // anything selected? i.e. from, to, etc. valid?
-		bool enabled; // allow selections?
+		bool active = false; // anything selected? i.e. from, to, etc. valid?
+		bool enabled = false; // allow selections?
 	};
 
 	Selection selection;
 
-	int visible_characters;
-	float percent_visible;
+	int visible_characters = -1;
+	float percent_visible = 1.0;
 
 	void _find_click(ItemFrame *p_frame, const Point2i &p_click, ItemFrame **r_click_frame = nullptr, int *r_click_line = nullptr, Item **r_click_item = nullptr, int *r_click_char = nullptr, bool *r_outside = nullptr);
 
-	String _get_line_text(ItemFrame *p_frame, int p_line, Selection p_sel);
+	String _get_line_text(ItemFrame *p_frame, int p_line, Selection p_sel) const;
 	bool _search_line(ItemFrame *p_frame, int p_line, const String &p_string, Item *p_from, Item *p_to);
 
 	void _shape_line(ItemFrame *p_frame, int p_line, const Ref<Font> &p_base_font, int p_base_font_size, int p_width, int *r_char_offset);
 	void _resize_line(ItemFrame *p_frame, int p_line, const Ref<Font> &p_base_font, int p_base_font_size, int p_width);
-	void _draw_line(ItemFrame *p_frame, int p_line, const Vector2 &p_ofs, int p_width, const Color &p_base_color, int p_outline_size, const Color &p_outline_color, const Color &p_font_color_shadow, bool p_shadow_as_outline, const Point2 &shadow_ofs);
+	int _draw_line(ItemFrame *p_frame, int p_line, const Vector2 &p_ofs, int p_width, const Color &p_base_color, int p_outline_size, const Color &p_outline_color, const Color &p_font_shadow_color, bool p_shadow_as_outline, const Point2 &shadow_ofs);
 	float _find_click_in_line(ItemFrame *p_frame, int p_line, const Vector2 &p_ofs, int p_width, const Point2i &p_click, ItemFrame **r_click_frame = nullptr, int *r_click_line = nullptr, Item **r_click_item = nullptr, int *r_click_char = nullptr);
 
 	String _roman(int p_num, bool p_capitalize) const;
@@ -389,8 +407,9 @@ private:
 	Ref<Font> _find_font(Item *p_item);
 	int _find_font_size(Item *p_item);
 	Dictionary _find_font_features(Item *p_item);
-	int _find_outline_size(Item *p_item);
+	int _find_outline_size(Item *p_item, int p_default);
 	ItemList *_find_list_item(Item *p_item);
+	ItemDropcap *_find_dc_item(Item *p_item);
 	int _find_list(Item *p_item, Vector<int> &r_index, Vector<ItemList *> &r_list);
 	int _find_margin(Item *p_item, const Ref<Font> &p_base_font, int p_base_font_size);
 	Align _find_align(Item *p_item);
@@ -405,29 +424,24 @@ private:
 	bool _find_layout_subitem(Item *from, Item *to);
 	void _fetch_item_fx_stack(Item *p_item, Vector<ItemFX *> &r_stack);
 
-	static Color _get_color_from_string(const String &p_color_str, const Color &p_default_color);
-
 	void _update_scroll();
 	void _update_fx(ItemFrame *p_frame, float p_delta_time);
 	void _scroll_changed(double);
 
 	void _gui_input(Ref<InputEvent> p_event);
-	Item *_get_next_item(Item *p_item, bool p_free = false);
-	Item *_get_prev_item(Item *p_item, bool p_free = false);
+	Item *_get_next_item(Item *p_item, bool p_free = false) const;
+	Item *_get_prev_item(Item *p_item, bool p_free = false) const;
 
 	Rect2 _get_text_rect();
 	Ref<RichTextEffect> _get_custom_effect_by_code(String p_bbcode_identifier);
 	virtual Dictionary parse_expressions_for_values(Vector<String> p_expressions);
 
-	bool use_bbcode;
+	bool use_bbcode = false;
 	String bbcode;
 
-	int fixed_width;
+	int fixed_width = -1;
 
-	bool fit_content_height;
-
-protected:
-	void _notification(int p_what);
+	bool fit_content_height = false;
 
 public:
 	String get_text();
@@ -435,6 +449,7 @@ public:
 	void add_image(const Ref<Texture2D> &p_image, const int p_width = 0, const int p_height = 0, const Color &p_color = Color(1.0, 1.0, 1.0), VAlign p_align = VALIGN_TOP);
 	void add_newline();
 	bool remove_line(const int p_line);
+	void push_dropcap(const String &p_string, const Ref<Font> &p_font, int p_size, const Rect2 &p_dropcap_margins = Rect2(), const Color &p_color = Color(1, 1, 1), int p_ol_size = 0, const Color &p_ol_color = Color(0, 0, 0, 0));
 	void push_font(const Ref<Font> &p_font);
 	void push_font_size(int p_font_size);
 	void push_font_features(const Dictionary &p_features);
@@ -492,6 +507,10 @@ public:
 
 	bool search(const String &p_string, bool p_from_selection = false, bool p_search_previous = false);
 
+	void scroll_to_paragraph(int p_paragraph);
+	int get_paragraph_count() const;
+	int get_visible_paragraph_count() const;
+
 	void scroll_to_line(int p_line);
 	int get_line_count() const;
 	int get_visible_line_count() const;
@@ -504,7 +523,9 @@ public:
 
 	void set_selection_enabled(bool p_enabled);
 	bool is_selection_enabled() const;
-	String get_selected_text();
+	int get_selection_from() const;
+	int get_selection_to() const;
+	String get_selected_text() const;
 	void selection_copy();
 
 	Error parse_bbcode(const String &p_bbcode);

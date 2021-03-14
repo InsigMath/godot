@@ -6,6 +6,7 @@
 	<description>
 		Rich text can contain custom text, fonts, images and some basic formatting. The label manages these as an internal tag stack. It also adapts itself to given width/heights.
 		[b]Note:[/b] Assignments to [member bbcode_text] clear the tag stack and reconstruct it from the property's contents. Any edits made to [member bbcode_text] will erase previous edits made from other manual sources such as [method append_bbcode] and the [code]push_*[/code] / [method pop] methods.
+		[b]Note:[/b] RichTextLabel doesn't support entangled BBCode tags. For example, instead of using [code][b]bold[i]bold italic[/b]italic[/i][/code], use [code][b]bold[i]bold italic[/i][/b][i]italic[/i][/code].
 		[b]Note:[/b] Unlike [Label], RichTextLabel doesn't have a [i]property[/i] to horizontally align text to the center. Instead, enable [member bbcode_enabled] and surround the text in a [code][center][/code] tag as follows: [code][center]Example[/center][/code]. There is currently no built-in way to vertically align text either, but this can be emulated by relying on anchors/containers and the [member fit_content_height] property.
 	</description>
 	<tutorials>
@@ -69,7 +70,35 @@
 			<return type="int">
 			</return>
 			<description>
-				Returns the total number of newlines in the tag stack's text tags. Considers wrapped text as one line.
+				Returns the total number of lines in the text. Wrapped text is counted as multiple lines.
+			</description>
+		</method>
+		<method name="get_paragraph_count" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+				Returns the total number of paragraphs (newlines or [code]p[/code] tags in the tag stack's text tags). Considers wrapped text as one paragraph.
+			</description>
+		</method>
+		<method name="get_selected_text" qualifiers="const">
+			<return type="String">
+			</return>
+			<description>
+				Returns the current selection text. Does not include BBCodes.
+			</description>
+		</method>
+		<method name="get_selection_from" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+				Returns the current selection first character index if a selection is active, [code]-1[/code] otherwise. Does not include BBCodes.
+			</description>
+		</method>
+		<method name="get_selection_to" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+				Returns the current selection last character index if a selection is active, [code]-1[/code] otherwise. Does not include BBCodes.
 			</description>
 		</method>
 		<method name="get_total_character_count" qualifiers="const">
@@ -91,6 +120,13 @@
 			</return>
 			<description>
 				Returns the number of visible lines.
+			</description>
+		</method>
+		<method name="get_visible_paragraph_count" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+				Returns the number of visible paragraphs. A paragraph is considered visible if at least one of its lines is visible.
 			</description>
 		</method>
 		<method name="install_effect">
@@ -162,6 +198,27 @@
 			</argument>
 			<description>
 				Adds a [code][color][/code] tag to the tag stack.
+			</description>
+		</method>
+		<method name="push_dropcap">
+			<return type="void">
+			</return>
+			<argument index="0" name="string" type="String">
+			</argument>
+			<argument index="1" name="font" type="Font">
+			</argument>
+			<argument index="2" name="size" type="int">
+			</argument>
+			<argument index="3" name="dropcap_margins" type="Rect2" default="Rect2( 0, 0, 0, 0 )">
+			</argument>
+			<argument index="4" name="color" type="Color" default="Color( 1, 1, 1, 1 )">
+			</argument>
+			<argument index="5" name="outline_size" type="int" default="0">
+			</argument>
+			<argument index="6" name="outline_color" type="Color" default="Color( 0, 0, 0, 0 )">
+			</argument>
+			<description>
+				Adds a [code][dropcap][/code] tag to the tag stack. Drop cap (dropped capital) is a decorative element at the beginning of a paragraph that is larger than the rest of the text.
 			</description>
 		</method>
 		<method name="push_font">
@@ -320,6 +377,15 @@
 				Scrolls the window's top line to match [code]line[/code].
 			</description>
 		</method>
+		<method name="scroll_to_paragraph">
+			<return type="void">
+			</return>
+			<argument index="0" name="paragraph" type="int">
+			</argument>
+			<description>
+				Scrolls the window's top line to match first line of the [code]paragraph[/code].
+			</description>
+		</method>
 		<method name="set_cell_border_color">
 			<return type="void">
 			</return>
@@ -433,6 +499,7 @@
 		</member>
 		<member name="visible_characters" type="int" setter="set_visible_characters" getter="get_visible_characters" default="-1">
 			The restricted number of characters to display in the label. If [code]-1[/code], all characters will be displayed.
+			[b]Note:[/b] Setting this property updates [member percent_visible] based on current [method get_total_character_count].
 		</member>
 	</members>
 	<signals>
@@ -525,9 +592,11 @@
 		</constant>
 		<constant name="ITEM_RAINBOW" value="20" enum="ItemType">
 		</constant>
-		<constant name="ITEM_CUSTOMFX" value="22" enum="ItemType">
-		</constant>
 		<constant name="ITEM_META" value="21" enum="ItemType">
+		</constant>
+		<constant name="ITEM_DROPCAP" value="22" enum="ItemType">
+		</constant>
+		<constant name="ITEM_CUSTOMFX" value="23" enum="ItemType">
 		</constant>
 	</constants>
 	<theme_items>
@@ -549,10 +618,13 @@
 		<theme_item name="focus" type="StyleBox">
 			The background The background used when the [RichTextLabel] is focused.
 		</theme_item>
-		<theme_item name="font_color_selected" type="Color" default="Color( 0.49, 0.49, 0.49, 1 )">
+		<theme_item name="font_outline_color" type="Color" default="Color( 1, 1, 1, 1 )">
+			The default tint of text outline.
+		</theme_item>
+		<theme_item name="font_selected_color" type="Color" default="Color( 0, 0, 0, 1 )">
 			The color of selected text, used when [member selection_enabled] is [code]true[/code].
 		</theme_item>
-		<theme_item name="font_color_shadow" type="Color" default="Color( 0, 0, 0, 0 )">
+		<theme_item name="font_shadow_color" type="Color" default="Color( 0, 0, 0, 0 )">
 			The color of the font's shadow.
 		</theme_item>
 		<theme_item name="italics_font" type="Font">
@@ -578,6 +650,9 @@
 		</theme_item>
 		<theme_item name="normal_font_size" type="int">
 			The default text font size.
+		</theme_item>
+		<theme_item name="outline_size" type="int" default="0">
+			The size of the text outline.
 		</theme_item>
 		<theme_item name="selection_color" type="Color" default="Color( 0.1, 0.1, 1, 0.8 )">
 			The color of the selection box.

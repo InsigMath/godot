@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -54,16 +54,16 @@ Ref<Texture2D> TextureProgressBar::get_over_texture() const {
 	return over;
 }
 
-void TextureProgressBar::set_stretch_margin(Margin p_margin, int p_size) {
-	ERR_FAIL_INDEX((int)p_margin, 4);
-	stretch_margin[p_margin] = p_size;
+void TextureProgressBar::set_stretch_margin(Side p_side, int p_size) {
+	ERR_FAIL_INDEX((int)p_side, 4);
+	stretch_margin[p_side] = p_size;
 	update();
 	minimum_size_changed();
 }
 
-int TextureProgressBar::get_stretch_margin(Margin p_margin) const {
-	ERR_FAIL_INDEX_V((int)p_margin, 4, 0);
-	return stretch_margin[p_margin];
+int TextureProgressBar::get_stretch_margin(Side p_side) const {
+	ERR_FAIL_INDEX_V((int)p_side, 4, 0);
+	return stretch_margin[p_side];
 }
 
 void TextureProgressBar::set_nine_patch_stretch(bool p_stretch) {
@@ -78,7 +78,7 @@ bool TextureProgressBar::get_nine_patch_stretch() const {
 
 Size2 TextureProgressBar::get_minimum_size() const {
 	if (nine_patch_stretch) {
-		return Size2(stretch_margin[MARGIN_LEFT] + stretch_margin[MARGIN_RIGHT], stretch_margin[MARGIN_TOP] + stretch_margin[MARGIN_BOTTOM]);
+		return Size2(stretch_margin[SIDE_LEFT] + stretch_margin[SIDE_RIGHT], stretch_margin[SIDE_TOP] + stretch_margin[SIDE_BOTTOM]);
 	} else if (under.is_valid()) {
 		return under->get_size();
 	} else if (over.is_valid()) {
@@ -145,9 +145,9 @@ Point2 TextureProgressBar::unit_val_to_uv(float val) {
 	float angle = (val * Math_TAU) - Math_PI * 0.5;
 	Point2 dir = Vector2(Math::cos(angle), Math::sin(angle));
 	float t1 = 1.0;
-	float cp = 0;
-	float cq = 0;
-	float cr = 0;
+	float cp = 0.0;
+	float cq = 0.0;
+	float cr = 0.0;
 	float edgeLeft = 0.0;
 	float edgeRight = 1.0;
 	float edgeBottom = 0.0;
@@ -206,8 +206,8 @@ Point2 TextureProgressBar::get_relative_center() {
 
 void TextureProgressBar::draw_nine_patch_stretched(const Ref<Texture2D> &p_texture, FillMode p_mode, double p_ratio, const Color &p_modulate) {
 	Vector2 texture_size = p_texture->get_size();
-	Vector2 topleft = Vector2(stretch_margin[MARGIN_LEFT], stretch_margin[MARGIN_TOP]);
-	Vector2 bottomright = Vector2(stretch_margin[MARGIN_RIGHT], stretch_margin[MARGIN_BOTTOM]);
+	Vector2 topleft = Vector2(stretch_margin[SIDE_LEFT], stretch_margin[SIDE_TOP]);
+	Vector2 bottomright = Vector2(stretch_margin[SIDE_RIGHT], stretch_margin[SIDE_BOTTOM]);
 
 	Rect2 src_rect = Rect2(Point2(), texture_size);
 	Rect2 dst_rect = Rect2(Point2(), get_size());
@@ -523,10 +523,10 @@ void TextureProgressBar::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "radial_center_offset"), "set_radial_center_offset", "get_radial_center_offset");
 	ADD_GROUP("Stretch", "stretch_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "nine_patch_stretch"), "set_nine_patch_stretch", "get_nine_patch_stretch");
-	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_left", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", MARGIN_LEFT);
-	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_top", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", MARGIN_TOP);
-	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_right", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", MARGIN_RIGHT);
-	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_bottom", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", MARGIN_BOTTOM);
+	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_left", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", SIDE_LEFT);
+	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_top", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", SIDE_TOP);
+	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_right", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", SIDE_RIGHT);
+	ADD_PROPERTYI(PropertyInfo(Variant::INT, "stretch_margin_bottom", PROPERTY_HINT_RANGE, "0,16384,1"), "set_stretch_margin", "get_stretch_margin", SIDE_BOTTOM);
 
 	BIND_ENUM_CONSTANT(FILL_LEFT_TO_RIGHT);
 	BIND_ENUM_CONSTANT(FILL_RIGHT_TO_LEFT);
@@ -540,17 +540,5 @@ void TextureProgressBar::_bind_methods() {
 }
 
 TextureProgressBar::TextureProgressBar() {
-	mode = FILL_LEFT_TO_RIGHT;
-	rad_init_angle = 0;
-	rad_center_off = Point2();
-	rad_max_degrees = 360;
 	set_mouse_filter(MOUSE_FILTER_PASS);
-
-	nine_patch_stretch = false;
-	stretch_margin[MARGIN_LEFT] = 0;
-	stretch_margin[MARGIN_RIGHT] = 0;
-	stretch_margin[MARGIN_BOTTOM] = 0;
-	stretch_margin[MARGIN_TOP] = 0;
-
-	tint_under = tint_progress = tint_over = Color(1, 1, 1);
 }

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -176,23 +176,24 @@ class ArrayMesh : public Mesh {
 
 	Array _get_surfaces() const;
 	void _set_surfaces(const Array &p_data);
+	Ref<ArrayMesh> shadow_mesh;
 
 private:
 	struct Surface {
-		uint32_t format;
-		int array_length;
-		int index_array_length;
-		PrimitiveType primitive;
+		uint32_t format = 0;
+		int array_length = 0;
+		int index_array_length = 0;
+		PrimitiveType primitive = PrimitiveType::PRIMITIVE_MAX;
 
 		String name;
 		AABB aabb;
 		Ref<Material> material;
-		bool is_2d;
+		bool is_2d = false;
 	};
 	Vector<Surface> surfaces;
 	mutable RID mesh;
 	AABB aabb;
-	BlendShapeMode blend_shape_mode;
+	BlendShapeMode blend_shape_mode = BLEND_SHAPE_MODE_RELATIVE;
 	Vector<StringName> blend_shapes;
 	AABB custom_aabb;
 
@@ -205,6 +206,8 @@ protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
 	bool _get(const StringName &p_name, Variant &r_ret) const;
 	void _get_property_list(List<PropertyInfo> *p_list) const;
+
+	virtual void reset_state() override;
 
 	static void _bind_methods();
 
@@ -252,12 +255,15 @@ public:
 	AABB get_aabb() const override;
 	virtual RID get_rid() const override;
 
-	void regen_normalmaps();
+	void regen_normal_maps();
 
 	Error lightmap_unwrap(const Transform &p_base_transform = Transform(), float p_texel_size = 0.05);
 	Error lightmap_unwrap_cached(int *&r_cache_data, unsigned int &r_cache_size, bool &r_used_cache, const Transform &p_base_transform = Transform(), float p_texel_size = 0.05);
 
 	virtual void reload_from_file() override;
+
+	void set_shadow_mesh(const Ref<ArrayMesh> &p_mesh);
+	Ref<ArrayMesh> get_shadow_mesh() const;
 
 	ArrayMesh();
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -31,7 +31,7 @@
 #include "dynamic_bvh.h"
 
 void DynamicBVH::_delete_node(Node *p_node) {
-	memdelete(p_node);
+	node_allocator.free(p_node);
 }
 
 void DynamicBVH::_recurse_delete_node(Node *p_node) {
@@ -46,10 +46,9 @@ void DynamicBVH::_recurse_delete_node(Node *p_node) {
 }
 
 DynamicBVH::Node *DynamicBVH::_create_node(Node *p_parent, void *p_data) {
-	Node *node = memnew(Node);
+	Node *node = node_allocator.alloc();
 	node->parent = p_parent;
 	node->data = p_data;
-	node->childs[1] = 0;
 	return (node);
 }
 
@@ -335,6 +334,7 @@ DynamicBVH::ID DynamicBVH::insert(const AABB &p_box, void *p_userdata) {
 
 	ID id;
 	id.node = leaf;
+
 	return id;
 }
 
@@ -351,13 +351,20 @@ void DynamicBVH::_update(Node *leaf, int lookahead) {
 	_insert_leaf(root, leaf);
 }
 
-void DynamicBVH::update(const ID &p_id, const AABB &p_box) {
-	ERR_FAIL_COND(!p_id.is_valid());
+bool DynamicBVH::update(const ID &p_id, const AABB &p_box) {
+	ERR_FAIL_COND_V(!p_id.is_valid(), false);
 	Node *leaf = p_id.node;
-	Node *base = _remove_leaf(leaf);
+
 	Volume volume;
 	volume.min = p_box.position;
 	volume.max = p_box.position + p_box.size;
+
+	if (leaf->volume.min.is_equal_approx(volume.min) && leaf->volume.max.is_equal_approx(volume.max)) {
+		// noop
+		return false;
+	}
+
+	Node *base = _remove_leaf(leaf);
 	if (base) {
 		if (lkhd >= 0) {
 			for (int i = 0; (i < lkhd) && base->parent; ++i) {
@@ -368,6 +375,7 @@ void DynamicBVH::update(const ID &p_id, const AABB &p_box) {
 	}
 	leaf->volume = volume;
 	_insert_leaf(base, leaf);
+	return true;
 }
 
 void DynamicBVH::remove(const ID &p_id) {
@@ -389,9 +397,32 @@ void DynamicBVH::_extract_leaves(Node *p_node, List<ID> *r_elements) {
 	}
 }
 
+void DynamicBVH::set_index(uint32_t p_index) {
+	ERR_FAIL_COND(bvh_root != nullptr);
+	index = p_index;
+}
+
+uint32_t DynamicBVH::get_index() const {
+	return index;
+}
+
 void DynamicBVH::get_elements(List<ID> *r_elements) {
 	if (bvh_root) {
 		_extract_leaves(bvh_root, r_elements);
+	}
+}
+
+int DynamicBVH::get_leaf_count() const {
+	return total_leaves;
+}
+int DynamicBVH::get_max_depth() const {
+	if (bvh_root) {
+		int depth = 1;
+		int max_depth = 0;
+		bvh_root->get_max_depth(depth, max_depth);
+		return max_depth;
+	} else {
+		return 0;
 	}
 }
 

@@ -140,7 +140,7 @@
 				i = ceil(1.45)  # i is 2
 				i = ceil(1.001) # i is 2
 				[/codeblock]
-				See also [method floor], [method round], and [method stepify].
+				See also [method floor], [method round], and [method snapped].
 			</description>
 		</method>
 		<method name="clamp">
@@ -303,7 +303,7 @@
 				# a is -3.0
 				a = floor(-2.99)
 				[/codeblock]
-				See also [method ceil], [method round], and [method stepify].
+				See also [method ceil], [method round], and [method snapped].
 				[b]Note:[/b] This method returns a float. If you need an integer, you can use [code]int(x)[/code] directly.
 			</description>
 		</method>
@@ -668,7 +668,7 @@
 		</method>
 		<method name="print" qualifiers="vararg">
 			<description>
-				Converts one or more arguments to strings in the best way possible and prints them to the console.
+				Converts one or more arguments of any type to string in the best way possible and prints them to the console.
 				[codeblock]
 				a = [1, 2, 3]
 				print("a", "b", a) # Prints ab[1, 2, 3]
@@ -848,7 +848,7 @@
 				[codeblock]
 				round(2.6) # Returns 3
 				[/codeblock]
-				See also [method floor], [method ceil], and [method stepify].
+				See also [method floor], [method ceil], and [method snapped].
 			</description>
 		</method>
 		<method name="seed">
@@ -935,13 +935,29 @@
 			<description>
 				Returns the result of smoothly interpolating the value of [code]x[/code] between [code]0[/code] and [code]1[/code], based on the where [code]x[/code] lies with respect to the edges [code]from[/code] and [code]to[/code].
 				The return value is [code]0[/code] if [code]x &lt;= from[/code], and [code]1[/code] if [code]x &gt;= to[/code]. If [code]x[/code] lies between [code]from[/code] and [code]to[/code], the returned value follows an S-shaped curve that maps [code]x[/code] between [code]0[/code] and [code]1[/code].
-				This S-shaped curve is the cubic Hermite interpolator, given by [code]f(x) = 3*x^2 - 2*x^3[/code].
+				This S-shaped curve is the cubic Hermite interpolator, given by [code]f(y) = 3*y^2 - 2*y^3[/code] where [code]y = (x-from) / (to-from)[/code].
 				[codeblock]
 				smoothstep(0, 2, -5.0) # Returns 0.0
 				smoothstep(0, 2, 0.5) # Returns 0.15625
 				smoothstep(0, 2, 1.0) # Returns 0.5
 				smoothstep(0, 2, 2.0) # Returns 1.0
 				[/codeblock]
+			</description>
+		</method>
+		<method name="snapped">
+			<return type="float">
+			</return>
+			<argument index="0" name="x" type="float">
+			</argument>
+			<argument index="1" name="step" type="float">
+			</argument>
+			<description>
+				Snaps float value [code]x[/code] to a given [code]step[/code]. This can also be used to round a floating point number to an arbitrary number of decimals.
+				[codeblock]
+				snapped(100, 32) # Returns 96
+				snapped(3.14159, 0.01) # Returns 3.14
+				[/codeblock]
+				See also [method ceil], [method floor], and [method round].
 			</description>
 		</method>
 		<method name="sqrt">
@@ -974,27 +990,11 @@
 				[/codeblock]
 			</description>
 		</method>
-		<method name="stepify">
-			<return type="float">
-			</return>
-			<argument index="0" name="x" type="float">
-			</argument>
-			<argument index="1" name="step" type="float">
-			</argument>
-			<description>
-				Snaps float value [code]x[/code] to a given [code]step[/code]. This can also be used to round a floating point number to an arbitrary number of decimals.
-				[codeblock]
-				stepify(100, 32) # Returns 96
-				stepify(3.14159, 0.01) # Returns 3.14
-				[/codeblock]
-				See also [method ceil], [method floor], and [method round].
-			</description>
-		</method>
 		<method name="str" qualifiers="vararg">
 			<return type="String">
 			</return>
 			<description>
-				Converts one or more arguments to string in the best way possible.
+				Converts one or more arguments of any type to string in the best way possible.
 			</description>
 		</method>
 		<method name="str2var">
@@ -1250,17 +1250,17 @@
 		</member>
 	</members>
 	<constants>
-		<constant name="MARGIN_LEFT" value="0" enum="Margin">
-			Left margin, usually used for [Control] or [StyleBox]-derived classes.
+		<constant name="SIDE_LEFT" value="0" enum="Side">
+			Left side, usually used for [Control] or [StyleBox]-derived classes.
 		</constant>
-		<constant name="MARGIN_TOP" value="1" enum="Margin">
-			Top margin, usually used for [Control] or [StyleBox]-derived classes.
+		<constant name="SIDE_TOP" value="1" enum="Side">
+			Top side, usually used for [Control] or [StyleBox]-derived classes.
 		</constant>
-		<constant name="MARGIN_RIGHT" value="2" enum="Margin">
-			Right margin, usually used for [Control] or [StyleBox]-derived classes.
+		<constant name="SIDE_RIGHT" value="2" enum="Side">
+			Right side, usually used for [Control] or [StyleBox]-derived classes.
 		</constant>
-		<constant name="MARGIN_BOTTOM" value="3" enum="Margin">
-			Bottom margin, usually used for [Control] or [StyleBox]-derived classes.
+		<constant name="SIDE_BOTTOM" value="3" enum="Side">
+			Bottom side, usually used for [Control] or [StyleBox]-derived classes.
 		</constant>
 		<constant name="CORNER_TOP_LEFT" value="0" enum="Corner">
 			Top-left corner.
@@ -1279,6 +1279,10 @@
 		</constant>
 		<constant name="HORIZONTAL" value="0" enum="Orientation">
 			General horizontal alignment, usually used for [Separator], [ScrollBar], [Slider], etc.
+		</constant>
+		<constant name="CLOCKWISE" value="0" enum="ClockDirection">
+		</constant>
+		<constant name="COUNTERCLOCKWISE" value="1" enum="ClockDirection">
 		</constant>
 		<constant name="HALIGN_LEFT" value="0" enum="HAlign">
 			Horizontal left alignment, usually for text-derived classes.
@@ -2147,7 +2151,25 @@
 		<constant name="JOY_BUTTON_DPAD_RIGHT" value="14" enum="JoyButtonList">
 			Game controller D-pad right button.
 		</constant>
-		<constant name="JOY_BUTTON_SDL_MAX" value="15" enum="JoyButtonList">
+		<constant name="JOY_BUTTON_MISC1" value="15" enum="JoyButtonList">
+			Game controller SDL miscellaneous button. Corresponds to Xbox share button, PS5 microphone button, Nintendo capture button.
+		</constant>
+		<constant name="JOY_BUTTON_PADDLE1" value="16" enum="JoyButtonList">
+			Game controller SDL paddle 1 button.
+		</constant>
+		<constant name="JOY_BUTTON_PADDLE2" value="17" enum="JoyButtonList">
+			Game controller SDL paddle 2 button.
+		</constant>
+		<constant name="JOY_BUTTON_PADDLE3" value="18" enum="JoyButtonList">
+			Game controller SDL paddle 3 button.
+		</constant>
+		<constant name="JOY_BUTTON_PADDLE4" value="19" enum="JoyButtonList">
+			Game controller SDL paddle 4 button.
+		</constant>
+		<constant name="JOY_BUTTON_TOUCHPAD" value="20" enum="JoyButtonList">
+			Game controller SDL touchpad button.
+		</constant>
+		<constant name="JOY_BUTTON_SDL_MAX" value="21" enum="JoyButtonList">
 			The number of SDL game controller buttons.
 		</constant>
 		<constant name="JOY_BUTTON_MAX" value="36" enum="JoyButtonList">
@@ -2387,43 +2409,49 @@
 		<constant name="PROPERTY_HINT_LAYERS_2D_PHYSICS" value="9" enum="PropertyHint">
 			Hints that an integer property is a bitmask using the optionally named 2D physics layers.
 		</constant>
-		<constant name="PROPERTY_HINT_LAYERS_3D_RENDER" value="10" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_LAYERS_2D_NAVIGATION" value="10" enum="PropertyHint">
+			Hints that an integer property is a bitmask using the optionally named 2D navigation layers.
+		</constant>
+		<constant name="PROPERTY_HINT_LAYERS_3D_RENDER" value="11" enum="PropertyHint">
 			Hints that an integer property is a bitmask using the optionally named 3D render layers.
 		</constant>
-		<constant name="PROPERTY_HINT_LAYERS_3D_PHYSICS" value="11" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_LAYERS_3D_PHYSICS" value="12" enum="PropertyHint">
 			Hints that an integer property is a bitmask using the optionally named 3D physics layers.
 		</constant>
-		<constant name="PROPERTY_HINT_FILE" value="12" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_LAYERS_3D_NAVIGATION" value="13" enum="PropertyHint">
+			Hints that an integer property is a bitmask using the optionally named 2D navigation layers.
+		</constant>
+		<constant name="PROPERTY_HINT_FILE" value="14" enum="PropertyHint">
 			Hints that a string property is a path to a file. Editing it will show a file dialog for picking the path. The hint string can be a set of filters with wildcards like [code]"*.png,*.jpg"[/code].
 		</constant>
-		<constant name="PROPERTY_HINT_DIR" value="13" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_DIR" value="15" enum="PropertyHint">
 			Hints that a string property is a path to a directory. Editing it will show a file dialog for picking the path.
 		</constant>
-		<constant name="PROPERTY_HINT_GLOBAL_FILE" value="14" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_GLOBAL_FILE" value="16" enum="PropertyHint">
 			Hints that a string property is an absolute path to a file outside the project folder. Editing it will show a file dialog for picking the path. The hint string can be a set of filters with wildcards like [code]"*.png,*.jpg"[/code].
 		</constant>
-		<constant name="PROPERTY_HINT_GLOBAL_DIR" value="15" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_GLOBAL_DIR" value="17" enum="PropertyHint">
 			Hints that a string property is an absolute path to a directory outside the project folder. Editing it will show a file dialog for picking the path.
 		</constant>
-		<constant name="PROPERTY_HINT_RESOURCE_TYPE" value="16" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_RESOURCE_TYPE" value="18" enum="PropertyHint">
 			Hints that a property is an instance of a [Resource]-derived type, optionally specified via the hint string (e.g. [code]"Texture2D"[/code]). Editing it will show a popup menu of valid resource types to instantiate.
 		</constant>
-		<constant name="PROPERTY_HINT_MULTILINE_TEXT" value="17" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_MULTILINE_TEXT" value="19" enum="PropertyHint">
 			Hints that a string property is text with line breaks. Editing it will show a text input field where line breaks can be typed.
 		</constant>
-		<constant name="PROPERTY_HINT_PLACEHOLDER_TEXT" value="18" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_PLACEHOLDER_TEXT" value="20" enum="PropertyHint">
 			Hints that a string property should have a placeholder text visible on its input field, whenever the property is empty. The hint string is the placeholder text to use.
 		</constant>
-		<constant name="PROPERTY_HINT_COLOR_NO_ALPHA" value="19" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_COLOR_NO_ALPHA" value="21" enum="PropertyHint">
 			Hints that a color property should be edited without changing its alpha component, i.e. only R, G and B channels are edited.
 		</constant>
-		<constant name="PROPERTY_HINT_IMAGE_COMPRESS_LOSSY" value="20" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_IMAGE_COMPRESS_LOSSY" value="22" enum="PropertyHint">
 			Hints that an image is compressed using lossy compression.
 		</constant>
-		<constant name="PROPERTY_HINT_IMAGE_COMPRESS_LOSSLESS" value="21" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_IMAGE_COMPRESS_LOSSLESS" value="23" enum="PropertyHint">
 			Hints that an image is compressed using lossless compression.
 		</constant>
-		<constant name="PROPERTY_HINT_TYPE_STRING" value="23" enum="PropertyHint">
+		<constant name="PROPERTY_HINT_TYPE_STRING" value="25" enum="PropertyHint">
 			Hint that a property represents a particular type. If a property is [constant TYPE_STRING], allows to set a type from the create dialog. If you need to create an [Array] to contain elements of a specific type, the [code]hint_string[/code] must encode nested types using [code]":"[/code] and [code]"/"[/code] for specifying [Resource] types. For instance:
 			[codeblock]
 			hint_string = "%s:" % [TYPE_INT] # Array of inteters.

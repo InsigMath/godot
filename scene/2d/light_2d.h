@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -52,24 +52,24 @@ public:
 
 private:
 	RID canvas_light;
-	bool enabled;
-	bool editor_only;
-	bool shadow;
-	Color color;
-	Color shadow_color;
-	float height;
-	float energy;
-	int z_min;
-	int z_max;
-	int layer_min;
-	int layer_max;
-	int item_mask;
-	int item_shadow_mask;
-	float shadow_smooth;
+	bool enabled = true;
+	bool editor_only = false;
+	bool shadow = false;
+	Color color = Color(1, 1, 1);
+	Color shadow_color = Color(0, 0, 0, 0);
+	float height = 0.0;
+	float energy = 1.0;
+	int z_min = -1024;
+	int z_max = 1024;
+	int layer_min = 0;
+	int layer_max = 0;
+	int item_mask = 1;
+	int item_shadow_mask = 1;
+	float shadow_smooth = 0.0;
 	Ref<Texture2D> texture;
 	Vector2 texture_offset;
-	ShadowFilter shadow_filter;
-	BlendMode blend_mode;
+	ShadowFilter shadow_filter = SHADOW_FILTER_NONE;
+	BlendMode blend_mode = BLEND_MODE_ADD;
 
 	void _update_light_visibility();
 
@@ -77,6 +77,7 @@ protected:
 	_FORCE_INLINE_ RID _get_light() const { return canvas_light; }
 	void _notification(int p_what);
 	static void _bind_methods();
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	void set_enabled(bool p_enabled);

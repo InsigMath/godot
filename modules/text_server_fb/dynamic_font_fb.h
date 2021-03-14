@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,6 +32,10 @@
 #define DYNAMIC_FONT_FALLBACK_H
 
 #include "font_fb.h"
+
+#include "modules/modules_enabled.gen.h"
+
+#ifdef MODULE_FREETYPE_ENABLED
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -70,13 +74,10 @@ private:
 				uint32_t size : 16;
 				uint32_t outline_size : 16;
 			};
-			uint32_t key;
+			uint32_t key = 0;
 		};
 		bool operator<(CacheID right) const {
 			return key < right.key;
-		}
-		CacheID() {
-			key = 0;
 		}
 	};
 
@@ -86,10 +87,10 @@ private:
 
 		int size = 0;
 		float scale_color_font = 1.f;
-		float ascent = 0;
-		float descent = 0;
-		float underline_position = 0;
-		float underline_thickness = 0;
+		float ascent = 0.0;
+		float descent = 0.0;
+		float underline_position = 0.0;
+		float underline_thickness = 0.0;
 
 		Vector<CharTexture> textures;
 		HashMap<char32_t, Character> char_map;
@@ -165,5 +166,7 @@ public:
 
 	virtual ~DynamicFontDataFallback() override;
 };
+
+#endif // MODULE_FREETYPE_ENABLED
 
 #endif // DYNAMIC_FONT_FALLBACK_H

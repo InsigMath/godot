@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -81,6 +81,7 @@ public:
 
 		RID shadow_atlas;
 		int shadow_atlas_size;
+		bool shadow_atlas_16_bits = false;
 
 		bool sdf_active;
 
@@ -164,7 +165,7 @@ public:
 
 	uint64_t draw_viewports_pass = 0;
 
-	mutable RID_PtrOwner<Viewport> viewport_owner;
+	mutable RID_PtrOwner<Viewport, true> viewport_owner;
 
 	struct ViewportSort {
 		_FORCE_INLINE_ bool operator()(const Viewport *p_left, const Viewport *p_right) const {
@@ -185,7 +186,8 @@ private:
 	void _draw_viewport(Viewport *p_viewport, XRInterface::Eyes p_eye = XRInterface::EYE_MONO);
 
 public:
-	RID viewport_create();
+	RID viewport_allocate();
+	void viewport_initialize(RID p_rid);
 
 	void viewport_set_use_xr(RID p_viewport, bool p_use_xr);
 
@@ -217,7 +219,7 @@ public:
 	void viewport_set_global_canvas_transform(RID p_viewport, const Transform2D &p_transform);
 	void viewport_set_canvas_stacking(RID p_viewport, RID p_canvas, int p_layer, int p_sublayer);
 
-	void viewport_set_shadow_atlas_size(RID p_viewport, int p_size);
+	void viewport_set_shadow_atlas_size(RID p_viewport, int p_size, bool p_16_bits = false);
 	void viewport_set_shadow_atlas_quadrant_subdivision(RID p_viewport, int p_quadrant, int p_subdiv);
 
 	void viewport_set_msaa(RID p_viewport, RS::ViewportMSAA p_msaa);
@@ -247,6 +249,9 @@ public:
 	void draw_viewports();
 
 	bool free(RID p_rid);
+
+	//workaround for setting this on thread
+	void call_set_use_vsync(bool p_enable);
 
 	RendererViewport();
 	virtual ~RendererViewport() {}

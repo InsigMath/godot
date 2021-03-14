@@ -169,6 +169,8 @@
 		</member>
 		<member name="reflected_light_source" type="int" setter="set_reflection_source" getter="get_reflection_source" enum="Environment.ReflectionSource" default="0">
 		</member>
+		<member name="sdfgi_bounce_feedback" type="float" setter="set_sdfgi_bounce_feedback" getter="get_sdfgi_bounce_feedback" default="0.0">
+		</member>
 		<member name="sdfgi_cascade0_distance" type="float" setter="set_sdfgi_cascade0_distance" getter="get_sdfgi_cascade0_distance" default="12.8">
 		</member>
 		<member name="sdfgi_cascades" type="int" setter="set_sdfgi_cascades" getter="get_sdfgi_cascades" enum="Environment.SDFGICascades" default="1">
@@ -186,8 +188,6 @@
 		<member name="sdfgi_probe_bias" type="float" setter="set_sdfgi_probe_bias" getter="get_sdfgi_probe_bias" default="1.1">
 		</member>
 		<member name="sdfgi_read_sky_light" type="bool" setter="set_sdfgi_read_sky_light" getter="is_sdfgi_reading_sky_light" default="false">
-		</member>
-		<member name="sdfgi_use_multi_bounce" type="bool" setter="set_sdfgi_use_multi_bounce" getter="is_sdfgi_using_multi_bounce" default="false">
 		</member>
 		<member name="sdfgi_use_occlusion" type="bool" setter="set_sdfgi_use_occlusion" getter="is_sdfgi_using_occlusion" default="false">
 		</member>
@@ -265,12 +265,14 @@
 		</member>
 		<member name="volumetric_fog_light_energy" type="float" setter="set_volumetric_fog_light_energy" getter="get_volumetric_fog_light_energy" default="1.0">
 		</member>
-		<member name="volumetric_fog_shadow_filter" type="int" setter="set_volumetric_fog_shadow_filter" getter="get_volumetric_fog_shadow_filter" enum="Environment.VolumetricFogShadowFilter" default="1">
+		<member name="volumetric_fog_temporal_reprojection_amount" type="float" setter="set_volumetric_fog_temporal_reprojection_amount" getter="get_volumetric_fog_temporal_reprojection_amount" default="0.9">
+		</member>
+		<member name="volumetric_fog_temporal_reprojection_enabled" type="bool" setter="set_volumetric_fog_temporal_reprojection_enabled" getter="is_volumetric_fog_temporal_reprojection_enabled" default="true">
 		</member>
 	</members>
 	<constants>
 		<constant name="BG_CLEAR_COLOR" value="0" enum="BGMode">
-			Clears the background using the clear color defined in [member ProjectSettings.rendering/environment/default_clear_color].
+			Clears the background using the clear color defined in [member ProjectSettings.rendering/environment/defaults/default_clear_color].
 		</constant>
 		<constant name="BG_COLOR" value="1" enum="BGMode">
 			Clears the background using a custom clear color.

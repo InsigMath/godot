@@ -5,13 +5,22 @@
 	</brief_description>
 	<description>
 		The [SurfaceTool] is used to construct a [Mesh] by specifying vertex attributes individually. It can be used to construct a [Mesh] from a script. All properties except indices need to be added before calling [method add_vertex]. For example, to add vertex colors and UVs:
-		[codeblock]
+		[codeblocks]
+		[gdscript]
 		var st = SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		st.set_color(Color(1, 0, 0))
 		st.set_uv(Vector2(0, 0))
 		st.set_vertex(Vector3(0, 0, 0))
-		[/codeblock]
+		[/gdscript]
+		[csharp]
+		var st = new SurfaceTool();
+		st.Begin(Mesh.PrimitiveType.Triangles);
+		st.SetColor(new Color(1, 0, 0));
+		st.SetUv(new Vector2(0, 0));
+		st.SetVertex(new Vector3(0, 0, 0));
+		[/csharp]
+		[/codeblocks]
 		The above [SurfaceTool] now contains one vertex of a triangle which has a UV coordinate and a specified [Color]. If another vertex were added without calling [method set_uv] or [method set_color], then the last values would be used.
 		Vertex attributes must be passed [b]before[/b] calling [method add_vertex]. Failure to do so will result in an error when committing the vertex information to a mesh.
 		Additionally, the attributes used before the first vertex is added determine the format of the mesh. For example, if you only add UVs to the first vertex, you cannot add color to any of the subsequent vertices.
@@ -29,15 +38,6 @@
 			</argument>
 			<description>
 				Adds an index to index array if you are using indexed vertices. Does not need to be called before adding vertices.
-			</description>
-		</method>
-		<method name="add_smooth_group">
-			<return type="void">
-			</return>
-			<argument index="0" name="smooth" type="bool">
-			</argument>
-			<description>
-				Specifies whether the current vertex (if using only vertex arrays) or current index (if also using index arrays) should use smooth normals for normal calculation.
 			</description>
 		</method>
 		<method name="add_triangle_fan">
@@ -148,14 +148,24 @@
 				Removes the index array by expanding the vertex array.
 			</description>
 		</method>
+		<method name="generate_lod">
+			<return type="PackedInt32Array">
+			</return>
+			<argument index="0" name="nd_threshold" type="float">
+			</argument>
+			<argument index="1" name="target_index_count" type="int" default="3">
+			</argument>
+			<description>
+			</description>
+		</method>
 		<method name="generate_normals">
 			<return type="void">
 			</return>
 			<argument index="0" name="flip" type="bool" default="false">
 			</argument>
 			<description>
-				Generates normals from vertices so you do not have to do it manually. If [code]flip[/code] is [code]true[/code], the resulting normals will be inverted.
-				Requires the primitive type to be set to [constant Mesh.PRIMITIVE_TRIANGLES].
+				Generates normals from vertices so you do not have to do it manually. If [code]flip[/code] is [code]true[/code], the resulting normals will be inverted. [method generate_normals] should be called [i]after[/i] generating geometry and [i]before[/i] committing the mesh using [method commit] or [method commit_to_arrays].
+				[b]Note:[/b] [method generate_normals] only works if the primitive type to be set to [constant Mesh.PRIMITIVE_TRIANGLES].
 			</description>
 		</method>
 		<method name="generate_tangents">
@@ -173,6 +183,12 @@
 			<description>
 			</description>
 		</method>
+		<method name="get_max_axis_length" qualifiers="const">
+			<return type="float">
+			</return>
+			<description>
+			</description>
+		</method>
 		<method name="get_skin_weight_count" qualifiers="const">
 			<return type="int" enum="SurfaceTool.SkinWeightCount">
 			</return>
@@ -184,6 +200,12 @@
 			</return>
 			<description>
 				Shrinks the vertex array by creating an index array (avoids reusing vertices).
+			</description>
+		</method>
+		<method name="optimize_indices_for_cache">
+			<return type="void">
+			</return>
+			<description>
 			</description>
 		</method>
 		<method name="set_bones">
@@ -249,6 +271,15 @@
 			<argument index="0" name="count" type="int" enum="SurfaceTool.SkinWeightCount">
 			</argument>
 			<description>
+			</description>
+		</method>
+		<method name="set_smooth_group">
+			<return type="void">
+			</return>
+			<argument index="0" name="index" type="int">
+			</argument>
+			<description>
+				Specifies whether the current vertex (if using only vertex arrays) or current index (if also using index arrays) should use smooth normals for normal calculation.
 			</description>
 		</method>
 		<method name="set_tangent">

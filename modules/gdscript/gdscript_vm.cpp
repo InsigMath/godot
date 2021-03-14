@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -476,11 +476,7 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 		}
 
 		if (p_instance) {
-			if (p_instance->base_ref && static_cast<Reference *>(p_instance->owner)->is_referenced()) {
-				self = REF(static_cast<Reference *>(p_instance->owner));
-			} else {
-				self = p_instance->owner;
-			}
+			self = p_instance->owner;
 			script = p_instance->script.ptr();
 		} else {
 			script = _script;
@@ -653,7 +649,7 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 
 					if (scr_B) {
 						//if B is a script, the only valid condition is that A has an instance which inherits from the script
-						//in other situation, this shoul return false.
+						//in other situation, this should return false.
 
 						if (obj_A->get_script_instance() && obj_A->get_script_instance()->get_language() == GDScriptLanguage::get_singleton()) {
 							GDScript *cmp = static_cast<GDScript *>(obj_A->get_script_instance()->get_script().ptr());
@@ -2282,7 +2278,7 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 				VariantInternal::initialize(counter, Variant::INT);
 				*VariantInternal::get_int(counter) = 0;
 
-				if (!str->empty()) {
+				if (!str->is_empty()) {
 					GET_INSTRUCTION_ARG(iterator, 2);
 					VariantInternal::initialize(iterator, Variant::STRING);
 					*VariantInternal::get_string(iterator) = str->substr(0, 1);
@@ -2306,10 +2302,10 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 
 				Dictionary *dict = VariantInternal::get_dictionary(container);
 				const Variant *next = dict->next(nullptr);
-				*counter = *next;
 
-				if (!dict->empty()) {
+				if (!dict->is_empty()) {
 					GET_INSTRUCTION_ARG(iterator, 2);
+					*counter = *next;
 					*iterator = *next;
 
 					// Skip regular iterate.
@@ -2334,7 +2330,7 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 				VariantInternal::initialize(counter, Variant::INT);
 				*VariantInternal::get_int(counter) = 0;
 
-				if (!array->empty()) {
+				if (!array->is_empty()) {
 					GET_INSTRUCTION_ARG(iterator, 2);
 					*iterator = array->get(0);
 
@@ -2357,7 +2353,7 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 		Vector<m_elem_type> *array = VariantInternal::m_get_func(container);                                               \
 		VariantInternal::initialize(counter, Variant::INT);                                                                \
 		*VariantInternal::get_int(counter) = 0;                                                                            \
-		if (!array->empty()) {                                                                                             \
+		if (!array->is_empty()) {                                                                                          \
 			GET_INSTRUCTION_ARG(iterator, 2);                                                                              \
 			VariantInternal::initialize(iterator, Variant::m_var_ret_type);                                                \
 			m_ret_type *it = VariantInternal::m_ret_get_func(iterator);                                                    \
@@ -2781,7 +2777,7 @@ Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_a
 						GET_INSTRUCTION_ARG(message, 1);
 						message_str = *message;
 					}
-					if (message_str.empty()) {
+					if (message_str.is_empty()) {
 						err_text = "Assertion failed.";
 					} else {
 						err_text = "Assertion failed: " + message_str;

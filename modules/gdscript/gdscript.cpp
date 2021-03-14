@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -219,7 +219,7 @@ StringName GDScript::get_instance_base_type() const {
 }
 
 struct _GDScriptMemberSort {
-	int index;
+	int index = 0;
 	StringName name;
 	_FORCE_INLINE_ bool operator<(const _GDScriptMemberSort &p_member) const { return index < p_member.index; }
 };
@@ -425,7 +425,7 @@ void GDScript::_update_doc() {
 	_clear_doc();
 
 	doc.script_path = "\"" + get_path().get_slice("://", 1) + "\"";
-	if (!name.empty()) {
+	if (!name.is_empty()) {
 		doc.name = name;
 	} else {
 		doc.name = doc.script_path;
@@ -793,10 +793,10 @@ Error GDScript::reload(bool p_keep_state) {
 
 	{
 		String source_path = path;
-		if (source_path.empty()) {
+		if (source_path.is_empty()) {
 			source_path = get_path();
 		}
-		if (!source_path.empty()) {
+		if (!source_path.is_empty()) {
 			MutexLock lock(GDScriptCache::singleton->lock);
 			if (!GDScriptCache::singleton->shallow_gdscript_cache.has(source_path)) {
 				GDScriptCache::singleton->shallow_gdscript_cache[source_path] = this;
@@ -812,7 +812,7 @@ Error GDScript::reload(bool p_keep_state) {
 			GDScriptLanguage::get_singleton()->debug_break_parse(get_path(), parser.get_errors().front()->get().line, "Parser Error: " + parser.get_errors().front()->get().message);
 		}
 		// TODO: Show all error messages.
-		_err_print_error("GDScript::reload", path.empty() ? "built-in" : (const char *)path.utf8().get_data(), parser.get_errors().front()->get().line, ("Parse Error: " + parser.get_errors().front()->get().message).utf8().get_data(), ERR_HANDLER_SCRIPT);
+		_err_print_error("GDScript::reload", path.is_empty() ? "built-in" : (const char *)path.utf8().get_data(), parser.get_errors().front()->get().line, ("Parse Error: " + parser.get_errors().front()->get().message).utf8().get_data(), ERR_HANDLER_SCRIPT);
 		ERR_FAIL_V(ERR_PARSE_ERROR);
 	}
 
@@ -826,7 +826,7 @@ Error GDScript::reload(bool p_keep_state) {
 
 		const List<GDScriptParser::ParserError>::Element *e = parser.get_errors().front();
 		while (e != nullptr) {
-			_err_print_error("GDScript::reload", path.empty() ? "built-in" : (const char *)path.utf8().get_data(), e->get().line, ("Parse Error: " + e->get().message).utf8().get_data(), ERR_HANDLER_SCRIPT);
+			_err_print_error("GDScript::reload", path.is_empty() ? "built-in" : (const char *)path.utf8().get_data(), e->get().line, ("Parse Error: " + e->get().message).utf8().get_data(), ERR_HANDLER_SCRIPT);
 			e = e->next();
 		}
 		ERR_FAIL_V(ERR_PARSE_ERROR);
@@ -846,7 +846,7 @@ Error GDScript::reload(bool p_keep_state) {
 			if (EngineDebugger::is_active()) {
 				GDScriptLanguage::get_singleton()->debug_break_parse(get_path(), compiler.get_error_line(), "Parser Error: " + compiler.get_error());
 			}
-			_err_print_error("GDScript::reload", path.empty() ? "built-in" : (const char *)path.utf8().get_data(), compiler.get_error_line(), ("Compile Error: " + compiler.get_error()).utf8().get_data(), ERR_HANDLER_SCRIPT);
+			_err_print_error("GDScript::reload", path.is_empty() ? "built-in" : (const char *)path.utf8().get_data(), compiler.get_error_line(), ("Compile Error: " + compiler.get_error()).utf8().get_data(), ERR_HANDLER_SCRIPT);
 			ERR_FAIL_V(ERR_COMPILATION_FAILED);
 		} else {
 			return err;
@@ -1162,17 +1162,6 @@ String GDScript::_get_gdscript_reference_class_name(const GDScript *p_gdscript) 
 
 GDScript::GDScript() :
 		script_list(this) {
-	valid = false;
-	subclass_count = 0;
-	initializer = nullptr;
-	_base = nullptr;
-	_owner = nullptr;
-	tool = false;
-#ifdef TOOLS_ENABLED
-	source_changed_cache = false;
-	placeholder_fallback_enabled = false;
-#endif
-
 #ifdef DEBUG_ENABLED
 	{
 		MutexLock lock(GDScriptLanguage::get_singleton()->lock);
@@ -2151,7 +2140,7 @@ String GDScriptLanguage::get_global_class_name(const String &p_path, String *r_b
 	if (err == OK) {
 		const GDScriptParser::ClassNode *c = parser.get_tree();
 		if (r_icon_path) {
-			if (c->icon_path.empty() || c->icon_path.is_abs_path()) {
+			if (c->icon_path.is_empty() || c->icon_path.is_abs_path()) {
 				*r_icon_path = c->icon_path;
 			} else if (c->icon_path.is_rel_path()) {
 				*r_icon_path = p_path.get_base_dir().plus_file(c->icon_path).simplify_path();
@@ -2163,7 +2152,7 @@ String GDScriptLanguage::get_global_class_name(const String &p_path, String *r_b
 			GDScriptParser subparser;
 			while (subclass) {
 				if (subclass->extends_used) {
-					if (!subclass->extends_path.empty()) {
+					if (!subclass->extends_path.is_empty()) {
 						if (subclass->extends.size() == 0) {
 							get_global_class_name(subclass->extends_path, r_base_type);
 							subclass = nullptr;
@@ -2177,7 +2166,7 @@ String GDScriptLanguage::get_global_class_name(const String &p_path, String *r_b
 							}
 							String subsource = subfile->get_as_utf8_string();
 
-							if (subsource.empty()) {
+							if (subsource.is_empty()) {
 								break;
 							}
 							String subpath = subclass->extends_path;
@@ -2327,7 +2316,7 @@ Ref<GDScript> GDScriptLanguage::get_orphan_subclass(const String &p_qualified_na
 
 /*************** RESOURCE ***************/
 
-RES ResourceFormatLoaderGDScript::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, bool p_no_cache) {
+RES ResourceFormatLoaderGDScript::load(const String &p_path, const String &p_original_path, Error *r_error, bool p_use_sub_threads, float *r_progress, CacheMode p_cache_mode) {
 	if (r_error) {
 		*r_error = ERR_FILE_CANT_OPEN;
 	}
@@ -2374,7 +2363,7 @@ void ResourceFormatLoaderGDScript::get_dependencies(const String &p_path, List<S
 	ERR_FAIL_COND_MSG(!file, "Cannot open file '" + p_path + "'.");
 
 	String source = file->get_as_utf8_string();
-	if (source.empty()) {
+	if (source.is_empty()) {
 		return;
 	}
 

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -51,8 +51,8 @@ class SceneDebugger;
 class SceneTreeTimer : public Reference {
 	GDCLASS(SceneTreeTimer, Reference);
 
-	float time_left;
-	bool process_pause;
+	float time_left = 0.0;
+	bool process_always = true;
 
 protected:
 	static void _bind_methods();
@@ -61,8 +61,8 @@ public:
 	void set_time_left(float p_time);
 	float get_time_left() const;
 
-	void set_pause_mode_process(bool p_pause_mode_process);
-	bool is_pause_mode_process();
+	void set_process_always(bool p_process_always);
+	bool is_process_always();
 
 	void release_connections();
 
@@ -80,15 +80,14 @@ public:
 private:
 	struct Group {
 		Vector<Node *> nodes;
-		bool changed;
-		Group() { changed = false; };
+		bool changed = false;
 	};
 
 	Window *root = nullptr;
 
 	uint64_t tree_version = 1;
 	float physics_process_time = 1.0;
-	float idle_process_time = 1.0;
+	float process_time = 1.0;
 	bool accept_quit = true;
 	bool quit_on_go_back = true;
 
@@ -96,7 +95,7 @@ private:
 	bool debug_collisions_hint = false;
 	bool debug_navigation_hint = false;
 #endif
-	bool pause = false;
+	bool paused = false;
 	int root_lock = 0;
 
 	Map<StringName, Group> group_map;
@@ -236,20 +235,20 @@ public:
 
 	void flush_transform_notifications();
 
-	virtual void init() override;
+	virtual void initialize() override;
 
-	virtual bool iteration(float p_time) override;
-	virtual bool idle(float p_time) override;
+	virtual bool physics_process(float p_time) override;
+	virtual bool process(float p_time) override;
 
-	virtual void finish() override;
+	virtual void finalize() override;
 
 	void set_auto_accept_quit(bool p_enable);
 	void set_quit_on_go_back(bool p_enable);
 
-	void quit(int p_exit_code = -1);
+	void quit(int p_exit_code = EXIT_SUCCESS);
 
 	_FORCE_INLINE_ float get_physics_process_time() const { return physics_process_time; }
-	_FORCE_INLINE_ float get_idle_process_time() const { return idle_process_time; }
+	_FORCE_INLINE_ float get_process_time() const { return process_time; }
 
 #ifdef TOOLS_ENABLED
 	bool is_node_being_edited(const Node *p_node) const;
@@ -303,6 +302,7 @@ public:
 	void queue_delete(Object *p_object);
 
 	void get_nodes_in_group(const StringName &p_group, List<Node *> *p_list);
+	Node *get_first_node_in_group(const StringName &p_group);
 	bool has_group(const StringName &p_identifier) const;
 
 	//void change_scene(const String& p_path);
@@ -317,7 +317,7 @@ public:
 	Error change_scene_to(const Ref<PackedScene> &p_scene);
 	Error reload_current_scene();
 
-	Ref<SceneTreeTimer> create_timer(float p_delay_sec, bool p_process_pause = true);
+	Ref<SceneTreeTimer> create_timer(float p_delay_sec, bool p_process_always = true);
 
 	//used by Main::start, don't use otherwise
 	void add_current_scene(Node *p_current);

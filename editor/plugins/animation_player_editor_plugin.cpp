@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -78,7 +78,6 @@ void AnimationPlayerEditor::_notification(int p_what) {
 				}
 				frame->set_value(player->get_current_animation_position());
 				track_editor->set_anim_pos(player->get_current_animation_position());
-				EditorNode::get_singleton()->get_inspector()->refresh();
 
 			} else if (!player->is_valid()) {
 				// Reset timeline when the player has been stopped externally
@@ -680,7 +679,7 @@ void AnimationPlayerEditor::set_state(const Dictionary &p_state) {
 
 			if (p_state.has("animation")) {
 				String anim = p_state["animation"];
-				if (!anim.empty() && player->has_animation(anim)) {
+				if (!anim.is_empty() && player->has_animation(anim)) {
 					_select_anim_by_name(anim);
 					_animation_edit();
 				}
@@ -1013,7 +1012,7 @@ void AnimationPlayerEditor::_seek_value_changed(float p_value, bool p_set) {
 
 	float pos = CLAMP(anim->get_length() * (p_value / frame->get_max()), 0, anim->get_length());
 	if (track_editor->is_snap_enabled()) {
-		pos = Math::stepify(pos, _get_editor_step());
+		pos = Math::snapped(pos, _get_editor_step());
 	}
 
 	if (player->is_valid() && !p_set) {
@@ -1069,11 +1068,9 @@ void AnimationPlayerEditor::_animation_key_editor_seek(float p_pos, bool p_drag)
 	}
 
 	updating = true;
-	frame->set_value(Math::stepify(p_pos, _get_editor_step()));
+	frame->set_value(Math::snapped(p_pos, _get_editor_step()));
 	updating = false;
 	_seek_value_changed(p_pos, !p_drag);
-
-	EditorNode::get_singleton()->get_inspector()->refresh();
 }
 
 void AnimationPlayerEditor::_animation_tool_menu(int p_option) {
@@ -1400,7 +1397,7 @@ void AnimationPlayerEditor::_prepare_onion_layers_2() {
 	// Render every past/future step with the capture shader.
 
 	RS::get_singleton()->canvas_item_set_material(onion.capture.canvas_item, onion.capture.material->get_rid());
-	onion.capture.material->set_shader_param("bkg_color", GLOBAL_GET("rendering/environment/default_clear_color"));
+	onion.capture.material->set_shader_param("bkg_color", GLOBAL_GET("rendering/environment/defaults/default_clear_color"));
 	onion.capture.material->set_shader_param("differences_only", onion.differences_only);
 	onion.capture.material->set_shader_param("present", onion.differences_only ? RS::get_singleton()->viewport_get_texture(present_rid) : RID());
 

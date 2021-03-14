@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -688,6 +688,8 @@ void Variant::_register_variant_constructors() {
 	add_constructor<VariantConstructor<Color, Color, double>>(sarray("from", "alpha"));
 	add_constructor<VariantConstructor<Color, double, double, double>>(sarray("r", "g", "b"));
 	add_constructor<VariantConstructor<Color, double, double, double, double>>(sarray("r", "g", "b", "a"));
+	add_constructor<VariantConstructor<Color, String>>(sarray("code"));
+	add_constructor<VariantConstructor<Color, String, double>>(sarray("code", "alpha"));
 
 	add_constructor<VariantConstructNoArgs<StringName>>(sarray());
 	add_constructor<VariantConstructor<StringName, StringName>>(sarray("from"));
@@ -771,6 +773,7 @@ void Variant::_unregister_variant_constructors() {
 }
 
 void Variant::construct(Variant::Type p_type, Variant &base, const Variant **p_args, int p_argcount, Callable::CallError &r_error) {
+	ERR_FAIL_INDEX(p_type, Variant::VARIANT_MAX);
 	uint32_t s = construct_data[p_type].size();
 	for (uint32_t i = 0; i < s; i++) {
 		int argc = construct_data[p_type][i].argument_count;
