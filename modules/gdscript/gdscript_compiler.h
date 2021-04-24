@@ -61,12 +61,12 @@ class GDScriptCompiler {
 
 		GDScriptCodeGenerator::Address add_local_constant(const StringName &p_name, const Variant &p_value) {
 			uint32_t addr = generator->add_local_constant(p_name, p_value);
-			locals[p_name] = GDScriptCodeGenerator::Address(GDScriptCodeGenerator::Address::LOCAL_CONSTANT, addr);
+			locals[p_name] = GDScriptCodeGenerator::Address(GDScriptCodeGenerator::Address::CONSTANT, addr);
 			return locals[p_name];
 		}
 
 		GDScriptCodeGenerator::Address add_temporary(const GDScriptDataType &p_type = GDScriptDataType()) {
-			uint32_t addr = generator->add_temporary();
+			uint32_t addr = generator->add_temporary(p_type);
 			return GDScriptCodeGenerator::Address(GDScriptCodeGenerator::Address::TEMPORARY, addr, p_type);
 		}
 

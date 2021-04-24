@@ -1299,7 +1299,7 @@ void DisplayServerWindows::cursor_set_custom_image(const RES &p_cursor, CursorSh
 		Rect2 atlas_rect;
 
 		if (texture.is_valid()) {
-			image = texture->get_data();
+			image = texture->get_image();
 		}
 
 		if (!image.is_valid() && atlas_texture.is_valid()) {
@@ -1322,7 +1322,7 @@ void DisplayServerWindows::cursor_set_custom_image(const RES &p_cursor, CursorSh
 		ERR_FAIL_COND(texture_size.width > 256 || texture_size.height > 256);
 		ERR_FAIL_COND(p_hotspot.x > texture_size.width || p_hotspot.y > texture_size.height);
 
-		image = texture->get_data();
+		image = texture->get_image();
 
 		ERR_FAIL_COND(!image.is_valid());
 
@@ -2431,9 +2431,9 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 						return 0;
 
 					if (motion > 0)
-						mb->set_button_index(BUTTON_WHEEL_UP);
+						mb->set_button_index(MOUSE_BUTTON_WHEEL_UP);
 					else
-						mb->set_button_index(BUTTON_WHEEL_DOWN);
+						mb->set_button_index(MOUSE_BUTTON_WHEEL_DOWN);
 
 				} break;
 				case WM_MOUSEHWHEEL: {
@@ -2443,33 +2443,33 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 						return 0;
 
 					if (motion < 0) {
-						mb->set_button_index(BUTTON_WHEEL_LEFT);
+						mb->set_button_index(MOUSE_BUTTON_WHEEL_LEFT);
 						mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
 					} else {
-						mb->set_button_index(BUTTON_WHEEL_RIGHT);
+						mb->set_button_index(MOUSE_BUTTON_WHEEL_RIGHT);
 						mb->set_factor(fabs((double)motion / (double)WHEEL_DELTA));
 					}
 				} break;
 				case WM_XBUTTONDOWN: {
 					mb->set_pressed(true);
 					if (HIWORD(wParam) == XBUTTON1)
-						mb->set_button_index(BUTTON_XBUTTON1);
+						mb->set_button_index(MOUSE_BUTTON_XBUTTON1);
 					else
-						mb->set_button_index(BUTTON_XBUTTON2);
+						mb->set_button_index(MOUSE_BUTTON_XBUTTON2);
 				} break;
 				case WM_XBUTTONUP: {
 					mb->set_pressed(false);
 					if (HIWORD(wParam) == XBUTTON1)
-						mb->set_button_index(BUTTON_XBUTTON1);
+						mb->set_button_index(MOUSE_BUTTON_XBUTTON1);
 					else
-						mb->set_button_index(BUTTON_XBUTTON2);
+						mb->set_button_index(MOUSE_BUTTON_XBUTTON2);
 				} break;
 				case WM_XBUTTONDBLCLK: {
 					mb->set_pressed(true);
 					if (HIWORD(wParam) == XBUTTON1)
-						mb->set_button_index(BUTTON_XBUTTON1);
+						mb->set_button_index(MOUSE_BUTTON_XBUTTON1);
 					else
-						mb->set_button_index(BUTTON_XBUTTON2);
+						mb->set_button_index(MOUSE_BUTTON_XBUTTON2);
 					mb->set_doubleclick(true);
 				} break;
 				default: {
@@ -2566,6 +2566,8 @@ LRESULT DisplayServerWindows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 					windows[window_id].preserve_window_size = false;
 					window_set_size(Size2(windows[window_id].width, windows[window_id].height), window_id);
 				}
+			} else {
+				windows[window_id].preserve_window_size = true;
 			}
 
 			if (!windows[window_id].rect_changed_callback.is_null()) {

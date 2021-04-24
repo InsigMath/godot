@@ -139,6 +139,8 @@ void EditorSettingsDialog::_notification(int p_what) {
 }
 
 void EditorSettingsDialog::_unhandled_input(const Ref<InputEvent> &p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	const Ref<InputEventKey> k = p_event;
 
 	if (k.is_valid() && k->is_pressed()) {
@@ -391,9 +393,10 @@ void EditorSettingsDialog::_shortcut_button_pressed(Object *p_item, int p_column
 	TreeItem *ti = Object::cast_to<TreeItem>(p_item);
 	ERR_FAIL_COND(!ti);
 
+	button_idx = p_idx;
+
 	if (ti->get_metadata(0) == "Common") {
 		// Editing a Built-in action, which can have multiple bindings.
-		button_idx = p_idx;
 		editing_action = true;
 		current_action = ti->get_text(0);
 

@@ -710,7 +710,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 			has_gnode_text = true;
 			LineEdit *line_edit = memnew(LineEdit);
 			line_edit->set_text(node->get_text());
-			line_edit->set_expand_to_text_length(true);
+			line_edit->set_expand_to_text_length_enabled(true);
 			line_edit->add_theme_font_override("font", get_theme_font("source", "EditorFonts"));
 			gnode->add_child(line_edit);
 			line_edit->connect("text_changed", callable_mp(this, &VisualScriptEditor::_expression_text_changed), varray(E->get()));
@@ -843,7 +843,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 						hbc->add_child(name_box);
 						name_box->set_custom_minimum_size(Size2(60 * EDSCALE, 0));
 						name_box->set_text(left_name);
-						name_box->set_expand_to_text_length(true);
+						name_box->set_expand_to_text_length_enabled(true);
 						name_box->connect("resized", callable_mp(this, &VisualScriptEditor::_update_node_size), varray(E->get()));
 						name_box->connect("focus_exited", callable_mp(this, &VisualScriptEditor::_port_name_focus_out), varray(name_box, E->get(), i, true));
 					} else {
@@ -938,7 +938,7 @@ void VisualScriptEditor::_update_graph(int p_only_id) {
 						hbc->add_child(name_box);
 						name_box->set_custom_minimum_size(Size2(60 * EDSCALE, 0));
 						name_box->set_text(right_name);
-						name_box->set_expand_to_text_length(true);
+						name_box->set_expand_to_text_length_enabled(true);
 						name_box->connect("resized", callable_mp(this, &VisualScriptEditor::_update_node_size), varray(E->get()));
 						name_box->connect("focus_exited", callable_mp(this, &VisualScriptEditor::_port_name_focus_out), varray(name_box, E->get(), i, false));
 					} else {
@@ -1826,6 +1826,8 @@ void VisualScriptEditor::_generic_search(String p_base_type, Vector2 pos, bool n
 }
 
 void VisualScriptEditor::_input(const Ref<InputEvent> &p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	// GUI input for VS Editor Plugin
 	Ref<InputEventMouseButton> key = p_event;
 
@@ -1837,7 +1839,7 @@ void VisualScriptEditor::_input(const Ref<InputEvent> &p_event) {
 void VisualScriptEditor::_graph_gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> key = p_event;
 
-	if (key.is_valid() && key->is_pressed() && key->get_button_mask() == BUTTON_RIGHT) {
+	if (key.is_valid() && key->is_pressed() && key->get_button_mask() == MOUSE_BUTTON_RIGHT) {
 		saved_position = graph->get_local_mouse_position();
 
 		Point2 gpos = Input::get_singleton()->get_mouse_position();
@@ -3015,9 +3017,9 @@ void VisualScriptEditor::_graph_connect_to_empty(const String &p_from, int p_fro
 	if (!vsn.is_valid()) {
 		return;
 	}
-	if (vsn->get_output_value_port_count())
-
+	if (vsn->get_output_value_port_count()) {
 		port_action_pos = p_release_pos;
+	}
 
 	if (p_from_slot < vsn->get_output_sequence_port_count()) {
 		port_action_node = p_from.to_int();
@@ -4320,7 +4322,7 @@ VisualScriptEditor::VisualScriptEditor() {
 	function_name_box = memnew(LineEdit);
 	function_name_edit->add_child(function_name_box);
 	function_name_box->connect("gui_input", callable_mp(this, &VisualScriptEditor::_fn_name_box_input));
-	function_name_box->set_expand_to_text_length(true);
+	function_name_box->set_expand_to_text_length_enabled(true);
 	add_child(function_name_edit);
 
 	///       Actual Graph          ///

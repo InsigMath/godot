@@ -91,7 +91,7 @@ static Ref<Texture2D> flip_icon(Ref<Texture2D> p_texture, bool p_flip_y = false,
 	}
 
 	Ref<ImageTexture> texture(memnew(ImageTexture));
-	Ref<Image> img = p_texture->get_data();
+	Ref<Image> img = p_texture->get_image();
 	img = img->duplicate();
 
 	if (p_flip_y) {
@@ -241,20 +241,14 @@ void editor_register_and_generate_icons(Ref<Theme> p_theme, bool p_dark_theme = 
 	// Generate icons.
 	if (!p_only_thumbs) {
 		for (int i = 0; i < editor_icons_count; i++) {
-			float icon_scale = EDSCALE;
 			float saturation = p_icon_saturation;
-
-			// Always keep the DefaultProjectIcon at the default size
-			if (strcmp(editor_icons_names[i], "DefaultProjectIcon") == 0) {
-				icon_scale = 1.0f;
-			}
 
 			if (strcmp(editor_icons_names[i], "DefaultProjectIcon") == 0 || strcmp(editor_icons_names[i], "Godot") == 0 || strcmp(editor_icons_names[i], "Logo") == 0) {
 				saturation = 1.0;
 			}
 
 			const int is_exception = exceptions.has(editor_icons_names[i]);
-			const Ref<ImageTexture> icon = editor_generate_icon(i, !is_exception, icon_scale, saturation);
+			const Ref<ImageTexture> icon = editor_generate_icon(i, !is_exception, EDSCALE, saturation);
 
 			p_theme->set_icon(editor_icons_names[i], "EditorIcons", icon);
 		}
@@ -567,7 +561,9 @@ Ref<Theme> create_editor_theme(const Ref<Theme> p_theme) {
 	style_tab_disabled->set_border_color(disabled_color);
 
 	// Editor background
-	theme->set_stylebox("Background", "EditorStyles", make_flat_stylebox(background_color, default_margin_size, default_margin_size, default_margin_size, default_margin_size));
+	Color background_color_opaque = background_color;
+	background_color_opaque.a = 1.0;
+	theme->set_stylebox("Background", "EditorStyles", make_flat_stylebox(background_color_opaque, default_margin_size, default_margin_size, default_margin_size, default_margin_size));
 
 	// Focus
 	Ref<StyleBoxFlat> style_focus = style_default->duplicate();
@@ -967,7 +963,7 @@ Ref<Theme> create_editor_theme(const Ref<Theme> p_theme) {
 	theme->set_color("read_only", "LineEdit", font_disabled_color);
 	theme->set_color("font_color", "LineEdit", font_color);
 	theme->set_color("font_selected_color", "LineEdit", mono_color);
-	theme->set_color("cursor_color", "LineEdit", font_color);
+	theme->set_color("caret_color", "LineEdit", font_color);
 	theme->set_color("selection_color", "LineEdit", selection_color);
 	theme->set_color("clear_button_color", "LineEdit", font_color);
 	theme->set_color("clear_button_color_pressed", "LineEdit", accent_color);
@@ -1266,6 +1262,8 @@ Ref<Theme> create_editor_theme(const Ref<Theme> p_theme) {
 	// FileDialog
 	theme->set_icon("folder", "FileDialog", theme->get_icon("Folder", "EditorIcons"));
 	theme->set_icon("parent_folder", "FileDialog", theme->get_icon("ArrowUp", "EditorIcons"));
+	theme->set_icon("back_folder", "FileDialog", theme->get_icon("Back", "EditorIcons"));
+	theme->set_icon("forward_folder", "FileDialog", theme->get_icon("Forward", "EditorIcons"));
 	theme->set_icon("reload", "FileDialog", theme->get_icon("Reload", "EditorIcons"));
 	theme->set_icon("toggle_hidden", "FileDialog", theme->get_icon("GuiVisibilityVisible", "EditorIcons"));
 	// Use a different color for folder icons to make them easier to distinguish from files.
@@ -1284,6 +1282,7 @@ Ref<Theme> create_editor_theme(const Ref<Theme> p_theme) {
 	theme->set_icon("preset_bg", "ColorPicker", theme->get_icon("GuiMiniCheckerboard", "EditorIcons"));
 	theme->set_icon("overbright_indicator", "ColorPicker", theme->get_icon("OverbrightIndicator", "EditorIcons"));
 	theme->set_icon("bar_arrow", "ColorPicker", theme->get_icon("ColorPickerBarArrow", "EditorIcons"));
+	theme->set_icon("picker_cursor", "ColorPicker", theme->get_icon("PickerCursor", "EditorIcons"));
 
 	theme->set_icon("bg", "ColorPickerButton", theme->get_icon("GuiMiniCheckerboard", "EditorIcons"));
 
@@ -1397,4 +1396,16 @@ Ref<Theme> create_custom_theme(const Ref<Theme> p_theme) {
 	}
 
 	return theme;
+}
+
+Ref<ImageTexture> create_unscaled_default_project_icon() {
+#ifdef MODULE_SVG_ENABLED
+	for (int i = 0; i < editor_icons_count; i++) {
+		// ESCALE should never affect size of the icon
+		if (strcmp(editor_icons_names[i], "DefaultProjectIcon") == 0) {
+			return editor_generate_icon(i, false, 1.0);
+		}
+	}
+#endif
+	return Ref<ImageTexture>(memnew(ImageTexture));
 }

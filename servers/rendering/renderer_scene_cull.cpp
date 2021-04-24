@@ -752,7 +752,7 @@ void RendererSceneCull::instance_set_blend_shape_weight(RID p_instance, int p_sh
 	}
 }
 
-void RendererSceneCull::instance_set_surface_material(RID p_instance, int p_surface, RID p_material) {
+void RendererSceneCull::instance_set_surface_override_material(RID p_instance, int p_surface, RID p_material) {
 	Instance *instance = instance_owner.getornull(p_instance);
 	ERR_FAIL_COND(!instance);
 
@@ -2891,8 +2891,15 @@ bool RendererSceneCull::_render_reflection_probe_step(Instance *p_instance, int 
 			shadow_atlas = scenario->reflection_probe_shadow_atlas;
 		}
 
+		RID environment;
+		if (scenario->environment.is_valid()) {
+			environment = scenario->environment;
+		} else {
+			environment = scenario->fallback_environment;
+		}
+
 		RENDER_TIMESTAMP("Render Reflection Probe, Step " + itos(p_step));
-		_render_scene(xform, cm, false, false, RID(), RID(), RID(), RSG::storage->reflection_probe_get_cull_mask(p_instance->base), p_instance->scenario->self, shadow_atlas, reflection_probe->instance, p_step, lod_threshold, use_shadows);
+		_render_scene(xform, cm, false, false, RID(), environment, RID(), RSG::storage->reflection_probe_get_cull_mask(p_instance->base), p_instance->scenario->self, shadow_atlas, reflection_probe->instance, p_step, lod_threshold, use_shadows);
 
 	} else {
 		//do roughness postprocess step until it believes it's done

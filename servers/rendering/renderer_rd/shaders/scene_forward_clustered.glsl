@@ -2,7 +2,7 @@
 
 #version 450
 
-VERSION_DEFINES
+#VERSION_DEFINES
 
 #include "scene_forward_clustered_inc.glsl"
 
@@ -81,11 +81,11 @@ layout(location = 5) out vec3 tangent_interp;
 layout(location = 6) out vec3 binormal_interp;
 #endif
 
-#ifdef USE_MATERIAL_UNIFORMS
+#ifdef MATERIAL_UNIFORMS_USED
 layout(set = MATERIAL_UNIFORM_SET, binding = 0, std140) uniform MaterialUniforms{
-	/* clang-format off */
-MATERIAL_UNIFORMS
-	/* clang-format on */
+
+#MATERIAL_UNIFORMS
+
 } material;
 #endif
 
@@ -99,11 +99,7 @@ layout(location = 8) out float dp_clip;
 
 layout(location = 9) out flat uint instance_index;
 
-/* clang-format off */
-
-VERTEX_SHADER_GLOBALS
-
-/* clang-format on */
+#GLOBALS
 
 void main() {
 	vec4 instance_custom = vec4(0.0);
@@ -230,11 +226,7 @@ void main() {
 	mat3 modelview_normal = mat3(scene_data.inv_camera_matrix) * world_normal_matrix;
 
 	{
-		/* clang-format off */
-
-VERTEX_SHADER_CODE
-
-		/* clang-format on */
+#CODE : VERTEX
 	}
 
 // using local coordinates (default)
@@ -325,7 +317,7 @@ VERTEX_SHADER_CODE
 
 #version 450
 
-VERSION_DEFINES
+#VERSION_DEFINES
 
 #include "scene_forward_clustered_inc.glsl"
 
@@ -372,19 +364,15 @@ layout(location = 9) in flat uint instance_index;
 #define LIGHT_TRANSMITTANCE_USED
 #endif
 
-#ifdef USE_MATERIAL_UNIFORMS
+#ifdef MATERIAL_UNIFORMS_USED
 layout(set = MATERIAL_UNIFORM_SET, binding = 0, std140) uniform MaterialUniforms{
-	/* clang-format off */
-MATERIAL_UNIFORMS
-	/* clang-format on */
+
+#MATERIAL_UNIFORMS
+
 } material;
 #endif
 
-/* clang-format off */
-
-FRAGMENT_SHADER_GLOBALS
-
-/* clang-format on */
+#GLOBALS
 
 #ifdef MODE_RENDER_DEPTH
 
@@ -581,18 +569,14 @@ void light_compute(vec3 N, vec3 L, vec3 V, vec3 light_color, float attenuation, 
 #endif
 		inout vec3 diffuse_light, inout vec3 specular_light) {
 
-#if defined(USE_LIGHT_SHADER_CODE)
+#if defined(LIGHT_CODE_USED)
 	// light is written by the light shader
 
 	vec3 normal = N;
 	vec3 light = L;
 	vec3 view = V;
 
-	/* clang-format off */
-
-LIGHT_SHADER_CODE
-
-	/* clang-format on */
+#CODE : LIGHT
 
 #else
 
@@ -794,7 +778,7 @@ LIGHT_SHADER_CODE
 	alpha = min(alpha, clamp(1.0 - attenuation), 0.0, 1.0));
 #endif
 
-#endif //defined(USE_LIGHT_SHADER_CODE)
+#endif //defined(LIGHT_CODE_USED)
 }
 
 #ifndef USE_NO_SHADOWS
@@ -1735,8 +1719,6 @@ void sdfgi_process(uint cascade, vec3 cascade_pos, vec3 cam_pos, vec3 cam_normal
 
 #ifndef MODE_RENDER_DEPTH
 
-#ifndef LOW_END_MODE
-
 vec4 volumetric_fog_process(vec2 screen_uv, float z) {
 	vec3 fog_pos = vec3(screen_uv, z * scene_data.volumetric_fog_inv_length);
 	if (fog_pos.z < 0.0) {
@@ -1747,7 +1729,6 @@ vec4 volumetric_fog_process(vec2 screen_uv, float z) {
 
 	return texture(sampler3D(volumetric_fog_texture, material_samplers[SAMPLER_LINEAR_CLAMP]), fog_pos);
 }
-#endif
 
 vec4 fog_process(vec3 vertex) {
 	vec3 fog_color = scene_data.fog_light_color;
@@ -1928,11 +1909,7 @@ void main() {
 #endif // ALPHA_ANTIALIASING_EDGE_USED
 
 	{
-		/* clang-format off */
-
-FRAGMENT_SHADER_CODE
-
-		/* clang-format on */
+#CODE : FRAGMENT
 	}
 
 #ifdef LIGHT_TRANSMITTANCE_USED
@@ -2019,7 +1996,6 @@ FRAGMENT_SHADER_CODE
 		fog = fog_process(vertex);
 	}
 
-#ifndef LOW_END_MODE
 	if (scene_data.volumetric_fog_enabled) {
 		vec4 volumetric_fog = volumetric_fog_process(screen_uv, -vertex.z);
 		if (scene_data.fog_enabled) {
@@ -2037,7 +2013,6 @@ FRAGMENT_SHADER_CODE
 			fog = volumetric_fog;
 		}
 	}
-#endif //!LOW_END_MODE
 #endif //!CUSTOM_FOG_USED
 
 	uint fog_rg = packHalf2x16(fog.rg);
@@ -2377,7 +2352,7 @@ FRAGMENT_SHADER_CODE
 		specular_light = spec_accum.rgb;
 		ambient_light = amb_accum.rgb;
 	}
-#elif !defined(LOW_END_MODE)
+#else
 
 	if (bool(instances.data[instance_index].flags & INSTANCE_FLAGS_USE_GI_BUFFERS)) { //use GI buffers
 
@@ -2412,13 +2387,11 @@ FRAGMENT_SHADER_CODE
 	}
 #endif
 
-#ifndef LOW_END_MODE
 	if (scene_data.ssao_enabled) {
 		float ssao = texture(sampler2D(ao_buffer, material_samplers[SAMPLER_LINEAR_CLAMP]), screen_uv).r;
 		ao = min(ao, ssao);
 		ao_light_affect = mix(ao_light_affect, max(ao_light_affect, scene_data.ssao_light_affect), scene_data.ssao_ao_affect);
 	}
-#endif //LOW_END_MODE
 
 	{ // process reflections
 

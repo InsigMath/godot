@@ -3109,20 +3109,20 @@ bool ShaderLanguage::_validate_varying_assign(ShaderNode::Varying &p_varying, St
 	}
 	switch (p_varying.stage) {
 		case ShaderNode::Varying::STAGE_UNKNOWN: // first assign
-			if (current_function == String("vertex")) {
+			if (current_function == varying_function_names.vertex) {
 				p_varying.stage = ShaderNode::Varying::STAGE_VERTEX;
-			} else if (current_function == String("fragment")) {
+			} else if (current_function == varying_function_names.fragment) {
 				p_varying.stage = ShaderNode::Varying::STAGE_FRAGMENT;
 			}
 			break;
 		case ShaderNode::Varying::STAGE_VERTEX:
-			if (current_function == String("fragment")) {
+			if (current_function == varying_function_names.fragment) {
 				*r_message = RTR("Varyings which assigned in 'vertex' function may not be reassigned in 'fragment' or 'light'.");
 				return false;
 			}
 			break;
 		case ShaderNode::Varying::STAGE_FRAGMENT:
-			if (current_function == String("vertex")) {
+			if (current_function == varying_function_names.vertex) {
 				*r_message = RTR("Varyings which assigned in 'fragment' function may not be reassigned in 'vertex' or 'light'.");
 				return false;
 			}
@@ -3139,25 +3139,25 @@ bool ShaderLanguage::_validate_varying_using(ShaderNode::Varying &p_varying, Str
 			*r_message = RTR("Varying must be assigned before using!");
 			return false;
 		case ShaderNode::Varying::STAGE_VERTEX:
-			if (current_function == String("fragment")) {
+			if (current_function == varying_function_names.fragment) {
 				p_varying.stage = ShaderNode::Varying::STAGE_VERTEX_TO_FRAGMENT;
-			} else if (current_function == String("light")) {
+			} else if (current_function == varying_function_names.light) {
 				p_varying.stage = ShaderNode::Varying::STAGE_VERTEX_TO_LIGHT;
 			}
 			break;
 		case ShaderNode::Varying::STAGE_FRAGMENT:
-			if (current_function == String("light")) {
+			if (current_function == varying_function_names.light) {
 				p_varying.stage = ShaderNode::Varying::STAGE_FRAGMENT_TO_LIGHT;
 			}
 			break;
 		case ShaderNode::Varying::STAGE_VERTEX_TO_FRAGMENT:
-			if (current_function == String("light")) {
+			if (current_function == varying_function_names.light) {
 				*r_message = RTR("Varying must only be used in two different stages, which can be 'vertex' 'fragment' and 'light'");
 				return false;
 			}
 			break;
 		case ShaderNode::Varying::STAGE_VERTEX_TO_LIGHT:
-			if (current_function == String("fragment")) {
+			if (current_function == varying_function_names.fragment) {
 				*r_message = RTR("Varying must only be used in two different stages, which can be 'vertex' 'fragment' and 'light'");
 				return false;
 			}
@@ -5847,7 +5847,7 @@ Error ShaderLanguage::_parse_block(BlockNode *p_block, const FunctionInfo &p_fun
 			//check return type
 			BlockNode *b = p_block;
 
-			if (b && b->parent_function && (b->parent_function->name == "vertex" || b->parent_function->name == "fragment" || b->parent_function->name == "light")) {
+			if (b && b->parent_function && p_function_info.main_function) {
 				_set_error(vformat("Using 'return' in '%s' processor function results in undefined behavior!", b->parent_function->name));
 				return ERR_PARSE_ERROR;
 			}
@@ -6825,7 +6825,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 										} else {
 											_set_tkpos(pos2);
 
-											Node *n = _parse_and_reduce_expression(NULL, FunctionInfo());
+											Node *n = _parse_and_reduce_expression(nullptr, FunctionInfo());
 											if (!n || n->type != Node::TYPE_CONSTANT || n->get_datatype() != TYPE_INT) {
 												_set_error("Expected single integer constant > 0");
 												return ERR_PARSE_ERROR;
@@ -6906,7 +6906,7 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 
 								if (tk.type == TK_PARENTHESIS_OPEN || curly) { // initialization
 									while (true) {
-										Node *n = _parse_and_reduce_expression(NULL, FunctionInfo());
+										Node *n = _parse_and_reduce_expression(nullptr, FunctionInfo());
 										if (!n) {
 											return ERR_PARSE_ERROR;
 										}
@@ -6932,10 +6932,11 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 											decl.initializer.push_back(n);
 											break;
 										} else {
-											if (curly)
+											if (curly) {
 												_set_error("Expected '}' or ','");
-											else
+											} else {
 												_set_error("Expected ')' or ','");
+											}
 											return ERR_PARSE_ERROR;
 										}
 									}
@@ -6961,9 +6962,10 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 								constant.initializer = static_cast<ConstantNode *>(expr);
 							} else {
 								//variable created with assignment! must parse an expression
-								Node *expr = _parse_and_reduce_expression(NULL, FunctionInfo());
-								if (!expr)
+								Node *expr = _parse_and_reduce_expression(nullptr, FunctionInfo());
+								if (!expr) {
 									return ERR_PARSE_ERROR;
+								}
 								if (expr->type == Node::TYPE_OPERATOR && ((OperatorNode *)expr)->op == OP_CALL) {
 									_set_error("Expected constant expression after '='");
 									return ERR_PARSE_ERROR;
@@ -7244,26 +7246,12 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 }
 
 bool ShaderLanguage::has_builtin(const Map<StringName, ShaderLanguage::FunctionInfo> &p_functions, const StringName &p_name) {
-	if (p_functions.has("vertex")) {
-		if (p_functions["vertex"].built_ins.has(p_name)) {
+	for (Map<StringName, ShaderLanguage::FunctionInfo>::Element *E = p_functions.front(); E; E = E->next()) {
+		if (E->get().built_ins.has(p_name)) {
 			return true;
 		}
 	}
-	if (p_functions.has("fragment")) {
-		if (p_functions["fragment"].built_ins.has(p_name)) {
-			return true;
-		}
-	}
-	if (p_functions.has("light")) {
-		if (p_functions["light"].built_ins.has(p_name)) {
-			return true;
-		}
-	}
-	if (p_functions.has("compute")) {
-		if (p_functions["compute"].built_ins.has(p_name)) {
-			return true;
-		}
-	}
+
 	return false;
 }
 
@@ -7397,11 +7385,12 @@ String ShaderLanguage::get_shader_type(const String &p_code) {
 	return String();
 }
 
-Error ShaderLanguage::compile(const String &p_code, const Map<StringName, FunctionInfo> &p_functions, const Vector<StringName> &p_render_modes, const Set<String> &p_shader_types, GlobalVariableGetTypeFunc p_global_variable_type_func) {
+Error ShaderLanguage::compile(const String &p_code, const Map<StringName, FunctionInfo> &p_functions, const Vector<StringName> &p_render_modes, const VaryingFunctionNames &p_varying_function_names, const Set<String> &p_shader_types, GlobalVariableGetTypeFunc p_global_variable_type_func) {
 	clear();
 
 	code = p_code;
 	global_var_get_type_func = p_global_variable_type_func;
+	varying_function_names = p_varying_function_names;
 
 	nodes = nullptr;
 
@@ -7414,10 +7403,11 @@ Error ShaderLanguage::compile(const String &p_code, const Map<StringName, Functi
 	return OK;
 }
 
-Error ShaderLanguage::complete(const String &p_code, const Map<StringName, FunctionInfo> &p_functions, const Vector<StringName> &p_render_modes, const Set<String> &p_shader_types, GlobalVariableGetTypeFunc p_global_variable_type_func, List<ScriptCodeCompletionOption> *r_options, String &r_call_hint) {
+Error ShaderLanguage::complete(const String &p_code, const Map<StringName, FunctionInfo> &p_functions, const Vector<StringName> &p_render_modes, const VaryingFunctionNames &p_varying_function_names, const Set<String> &p_shader_types, GlobalVariableGetTypeFunc p_global_variable_type_func, List<ScriptCodeCompletionOption> *r_options, String &r_call_hint) {
 	clear();
 
 	code = p_code;
+	varying_function_names = p_varying_function_names;
 
 	nodes = nullptr;
 	global_var_get_type_func = p_global_variable_type_func;

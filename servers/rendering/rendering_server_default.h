@@ -233,7 +233,7 @@ public:
 	FUNC2(shader_set_code, RID, const String &)
 	FUNC1RC(String, shader_get_code, RID)
 
-	FUNC2C(shader_get_param_list, RID, List<PropertyInfo> *)
+	FUNC2SC(shader_get_param_list, RID, List<PropertyInfo> *)
 
 	FUNC3(shader_set_default_texture_param, RID, const StringName &, RID)
 	FUNC2RC(RID, shader_get_default_texture_param, RID, const StringName &)
@@ -703,7 +703,7 @@ public:
 	FUNC2(instance_set_transform, RID, const Transform &)
 	FUNC2(instance_attach_object_instance_id, RID, ObjectID)
 	FUNC3(instance_set_blend_shape_weight, RID, int, float)
-	FUNC3(instance_set_surface_material, RID, int, RID)
+	FUNC3(instance_set_surface_override_material, RID, int, RID)
 	FUNC2(instance_set_visible, RID, bool)
 
 	FUNC2(instance_set_custom_aabb, RID, AABB)

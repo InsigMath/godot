@@ -99,6 +99,7 @@ class NavigationRegion2D : public Node2D {
 	Ref<NavigationPolygon> navpoly;
 
 	void _navpoly_changed();
+	void _map_changed(RID p_RID);
 
 protected:
 	void _notification(int p_what);
@@ -119,7 +120,7 @@ public:
 	void set_navigation_polygon(const Ref<NavigationPolygon> &p_navpoly);
 	Ref<NavigationPolygon> get_navigation_polygon() const;
 
-	String get_configuration_warning() const override;
+	TypedArray<String> get_configuration_warnings() const override;
 
 	NavigationRegion2D();
 	~NavigationRegion2D();

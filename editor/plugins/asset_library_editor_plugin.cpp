@@ -144,8 +144,8 @@ void EditorAssetLibraryItemDescription::set_image(int p_type, int p_index, const
 			for (int i = 0; i < preview_images.size(); i++) {
 				if (preview_images[i].id == p_index) {
 					if (preview_images[i].is_video) {
-						Ref<Image> overlay = previews->get_theme_icon("PlayOverlay", "EditorIcons")->get_data();
-						Ref<Image> thumbnail = p_image->get_data();
+						Ref<Image> overlay = previews->get_theme_icon("PlayOverlay", "EditorIcons")->get_image();
+						Ref<Image> thumbnail = p_image->get_image();
 						thumbnail = thumbnail->duplicate();
 						Point2 overlay_pos = Point2((thumbnail->get_width() - overlay->get_width()) / 2, (thumbnail->get_height() - overlay->get_height()) / 2);
 
@@ -557,8 +557,15 @@ void EditorAssetLibrary::_notification(int p_what) {
 			error_label->raise();
 		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
-			if (is_visible() && initial_loading) {
-				_repository_changed(0); // Update when shown for the first time.
+			if (is_visible()) {
+				// Focus the search box automatically when switching to the Templates tab (in the Project Manager)
+				// or switching to the AssetLib tab (in the editor).
+				// The Project Manager's project filter box is automatically focused in the project manager code.
+				filter->grab_focus();
+
+				if (initial_loading) {
+					_repository_changed(0); // Update when shown for the first time.
+				}
 			}
 		} break;
 		case NOTIFICATION_PROCESS: {
@@ -606,6 +613,8 @@ void EditorAssetLibrary::_update_repository_options() {
 }
 
 void EditorAssetLibrary::_unhandled_key_input(const Ref<InputEvent> &p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	const Ref<InputEventKey> key = p_event;
 
 	if (key.is_valid() && key->is_pressed()) {
@@ -1332,6 +1341,11 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	library_main->add_theme_constant_override("separation", 10 * EDSCALE);
 
 	filter = memnew(LineEdit);
+	if (templates_only) {
+		filter->set_placeholder(TTR("Search templates, projects, and demos"));
+	} else {
+		filter->set_placeholder(TTR("Search assets (excluding templates, projects, and demos)"));
+	}
 	search_hb->add_child(filter);
 	filter->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	filter->connect("text_changed", callable_mp(this, &EditorAssetLibrary::_search_text_changed));

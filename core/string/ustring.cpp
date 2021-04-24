@@ -1138,7 +1138,7 @@ Vector<String> String::rsplit(const String &p_splitter, bool p_allow_empty, int 
 		remaining_len = left_edge;
 	}
 
-	ret.invert();
+	ret.reverse();
 	return ret;
 }
 
@@ -3772,9 +3772,9 @@ String String::uri_encode() const {
 		} else {
 			char h_Val[3];
 #if defined(__GNUC__) || defined(_MSC_VER)
-			snprintf(h_Val, 3, "%hhX", ord);
+			snprintf(h_Val, 3, "%02hhX", ord);
 #else
-			sprintf(h_Val, "%hhX", ord);
+			sprintf(h_Val, "%02hhX", ord);
 #endif
 			res += "%";
 			res += h_Val;

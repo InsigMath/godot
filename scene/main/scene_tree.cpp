@@ -389,6 +389,7 @@ void SceneTree::set_group(const StringName &p_group, const String &p_name, const
 }
 
 void SceneTree::initialize() {
+	ERR_FAIL_COND(!root);
 	initialized = true;
 	root->_set_tree(this);
 	MainLoop::initialize();
@@ -1347,6 +1348,8 @@ SceneTree::SceneTree() {
 	ProjectSettings::get_singleton()->set_custom_property_info("debug/shapes/collision/max_contacts_displayed", PropertyInfo(Variant::INT, "debug/shapes/collision/max_contacts_displayed", PROPERTY_HINT_RANGE, "0,20000,1")); // No negative
 
 	GLOBAL_DEF("debug/shapes/collision/draw_2d_outlines", true);
+
+	Math::randomize();
 
 	// Create with mainloop.
 

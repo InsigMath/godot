@@ -35,6 +35,8 @@
 #include "servers/navigation_server_2d.h"
 
 void NavigationAgent2D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_rid"), &NavigationAgent2D::get_rid);
+
 	ClassDB::bind_method(D_METHOD("set_target_desired_distance", "desired_distance"), &NavigationAgent2D::set_target_desired_distance);
 	ClassDB::bind_method(D_METHOD("get_target_desired_distance"), &NavigationAgent2D::get_target_desired_distance);
 
@@ -88,9 +90,11 @@ void NavigationAgent2D::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
 			agent_parent = Object::cast_to<Node2D>(get_parent());
-
-			NavigationServer2D::get_singleton()->agent_set_callback(agent, this, "_avoidance_done");
-
+			if (agent_parent != nullptr) {
+				// place agent on navigation map first or else the RVO agent callback creation fails silently later
+				NavigationServer2D::get_singleton()->agent_set_map(get_rid(), agent_parent->get_world_2d()->get_navigation_map());
+				NavigationServer2D::get_singleton()->agent_set_callback(agent, this, "_avoidance_done");
+			}
 			set_physics_process_internal(true);
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
@@ -239,17 +243,14 @@ void NavigationAgent2D::_avoidance_done(Vector3 p_new_velocity) {
 	emit_signal("velocity_computed", velocity);
 }
 
-String NavigationAgent2D::get_configuration_warning() const {
-	String warning = Node::get_configuration_warning();
+TypedArray<String> NavigationAgent2D::get_configuration_warnings() const {
+	TypedArray<String> warnings = Node::get_configuration_warnings();
 
 	if (!Object::cast_to<Node2D>(get_parent())) {
-		if (!warning.is_empty()) {
-			warning += "\n\n";
-		}
-		warning += TTR("The NavigationAgent2D can be used only under a Node2D node");
+		warnings.push_back(TTR("The NavigationAgent2D can be used only under a Node2D node"));
 	}
 
-	return warning;
+	return warnings;
 }
 
 void NavigationAgent2D::update_navigation() {

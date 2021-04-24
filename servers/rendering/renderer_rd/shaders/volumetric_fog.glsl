@@ -2,13 +2,13 @@
 
 #version 450
 
-VERSION_DEFINES
+#VERSION_DEFINES
 
 /* Do not use subgroups here, seems there is not much advantage and causes glitches
+#if defined(has_GL_KHR_shader_subgroup_ballot) && defined(has_GL_KHR_shader_subgroup_arithmetic)
 #extension GL_KHR_shader_subgroup_ballot: enable
 #extension GL_KHR_shader_subgroup_arithmetic: enable
 
-#if defined(GL_KHR_shader_subgroup_ballot) && defined(GL_KHR_shader_subgroup_arithmetic)
 #define USE_SUBGROUPS
 #endif
 */

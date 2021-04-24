@@ -405,6 +405,10 @@ bool EditorFileSystem::_test_for_reimport(const String &p_path, bool p_only_impo
 
 	memdelete(f);
 
+	if (importer_name == "keep") {
+		return false; //keep mode, do not reimport
+	}
+
 	Ref<ResourceImporter> importer = ResourceFormatImporter::get_singleton()->get_importer_by_name(importer_name);
 
 	if (importer->get_format_version() > version) {
@@ -1532,6 +1536,10 @@ Error EditorFileSystem::_reimport_group(const String &p_group_file, const Vector
 		source_file_options[p_files[i]] = Map<StringName, Variant>();
 		importer_name = file_importer_name;
 
+		if (importer_name == "keep") {
+			continue; //do nothing
+		}
+
 		Ref<ResourceImporter> importer = ResourceFormatImporter::get_singleton()->get_importer_by_name(importer_name);
 		ERR_FAIL_COND_V(!importer.is_valid(), ERR_FILE_CORRUPT);
 		List<ResourceImporter::ImportOption> options;
@@ -1553,6 +1561,10 @@ Error EditorFileSystem::_reimport_group(const String &p_group_file, const Vector
 		}
 
 		base_paths[p_files[i]] = ResourceFormatImporter::get_singleton()->get_import_base_path(p_files[i]);
+	}
+
+	if (importer_name == "keep") {
+		return OK; // (do nothing)
 	}
 
 	ERR_FAIL_COND_V(importer_name == String(), ERR_UNCONFIGURED);
@@ -1668,7 +1680,7 @@ Error EditorFileSystem::_reimport_group(const String &p_group_file, const Vector
 	return err;
 }
 
-void EditorFileSystem::_reimport_file(const String &p_file) {
+void EditorFileSystem::_reimport_file(const String &p_file, const Map<StringName, Variant> *p_custom_options, const String &p_custom_importer) {
 	EditorFileSystemDirectory *fs = nullptr;
 	int cpos = -1;
 	bool found = _find_file(p_file, &fs, cpos);
@@ -1677,23 +1689,32 @@ void EditorFileSystem::_reimport_file(const String &p_file) {
 	//try to obtain existing params
 
 	Map<StringName, Variant> params;
-	String importer_name;
+	String importer_name; //empty by default though
+
+	if (p_custom_importer != String()) {
+		importer_name = p_custom_importer;
+	}
+	if (p_custom_options != nullptr) {
+		params = *p_custom_options;
+	}
 
 	if (FileAccess::exists(p_file + ".import")) {
 		//use existing
-		Ref<ConfigFile> cf;
-		cf.instance();
-		Error err = cf->load(p_file + ".import");
-		if (err == OK) {
-			if (cf->has_section("params")) {
-				List<String> sk;
-				cf->get_section_keys("params", &sk);
-				for (List<String>::Element *E = sk.front(); E; E = E->next()) {
-					params[E->get()] = cf->get_value("params", E->get());
+		if (p_custom_options == nullptr) {
+			Ref<ConfigFile> cf;
+			cf.instance();
+			Error err = cf->load(p_file + ".import");
+			if (err == OK) {
+				if (cf->has_section("params")) {
+					List<String> sk;
+					cf->get_section_keys("params", &sk);
+					for (List<String>::Element *E = sk.front(); E; E = E->next()) {
+						params[E->get()] = cf->get_value("params", E->get());
+					}
 				}
-			}
-			if (cf->has_section("remap")) {
-				importer_name = cf->get_value("remap", "importer");
+				if (p_custom_importer == String() && cf->has_section("remap")) {
+					importer_name = cf->get_value("remap", "importer");
+				}
 			}
 		}
 
@@ -1701,6 +1722,16 @@ void EditorFileSystem::_reimport_file(const String &p_file) {
 		late_added_files.insert(p_file); //imported files do not call update_file(), but just in case..
 	}
 
+	if (importer_name == "keep") {
+		//keep files, do nothing.
+		fs->files[cpos]->modified_time = FileAccess::get_modified_time(p_file);
+		fs->files[cpos]->import_modified_time = FileAccess::get_modified_time(p_file + ".import");
+		fs->files[cpos]->deps.clear();
+		fs->files[cpos]->type = "";
+		fs->files[cpos]->import_valid = false;
+		EditorResourcePreview::get_singleton()->check_for_invalidation(p_file);
+		return;
+	}
 	Ref<ResourceImporter> importer;
 	bool load_default = false;
 	//find the importer
@@ -1887,6 +1918,15 @@ void EditorFileSystem::_find_group_files(EditorFileSystemDirectory *efd, Map<Str
 	}
 }
 
+void EditorFileSystem::reimport_file_with_custom_parameters(const String &p_file, const String &p_importer, const Map<StringName, Variant> &p_custom_params) {
+	_reimport_file(p_file, &p_custom_params, p_importer);
+}
+
+void EditorFileSystem::_reimport_thread(uint32_t p_index, ImportThreadData *p_import_data) {
+	p_import_data->max_index = MAX(p_import_data->reimport_from + int(p_index), p_import_data->max_index);
+	_reimport_file(p_import_data->reimport_files[p_import_data->reimport_from + p_index].path);
+}
+
 void EditorFileSystem::reimport_files(const Vector<String> &p_files) {
 	{
 		// Ensure that ProjectSettings::IMPORTED_FILES_PATH exists.
@@ -1904,7 +1944,8 @@ void EditorFileSystem::reimport_files(const Vector<String> &p_files) {
 	importing = true;
 	EditorProgress pr("reimport", TTR("(Re)Importing Assets"), p_files.size());
 
-	Vector<ImportFile> files;
+	Vector<ImportFile> reimport_files;
+
 	Set<String> groups_to_reimport;
 
 	for (int i = 0; i < p_files.size(); i++) {
@@ -1922,8 +1963,8 @@ void EditorFileSystem::reimport_files(const Vector<String> &p_files) {
 			//it's a regular file
 			ImportFile ifile;
 			ifile.path = p_files[i];
-			ifile.order = ResourceFormatImporter::get_singleton()->get_import_order(p_files[i]);
-			files.push_back(ifile);
+			ResourceFormatImporter::get_singleton()->get_import_order_threads_and_importer(p_files[i], ifile.order, ifile.threaded, ifile.importer);
+			reimport_files.push_back(ifile);
 		}
 
 		//group may have changed, so also update group reference
@@ -1934,11 +1975,51 @@ void EditorFileSystem::reimport_files(const Vector<String> &p_files) {
 		}
 	}
 
-	files.sort();
+	reimport_files.sort();
 
-	for (int i = 0; i < files.size(); i++) {
-		pr.step(files[i].path.get_file(), i);
-		_reimport_file(files[i].path);
+	bool use_threads = GLOBAL_GET("editor/import/use_multiple_threads");
+
+	int from = 0;
+	for (int i = 0; i < reimport_files.size(); i++) {
+		if (use_threads && reimport_files[i].threaded) {
+			if (i + 1 == reimport_files.size() || reimport_files[i + 1].importer != reimport_files[from].importer) {
+				if (from - i == 0) {
+					//single file, do not use threads
+					pr.step(reimport_files[i].path.get_file(), i);
+					_reimport_file(reimport_files[i].path);
+				} else {
+					Ref<ResourceImporter> importer = ResourceFormatImporter::get_singleton()->get_importer_by_name(reimport_files[from].importer);
+					ERR_CONTINUE(!importer.is_valid());
+
+					importer->import_threaded_begin();
+
+					ImportThreadData data;
+					data.max_index = from;
+					data.reimport_from = from;
+					data.reimport_files = reimport_files.ptr();
+
+					import_threads.begin_work(i - from + 1, this, &EditorFileSystem::_reimport_thread, &data);
+					int current_index = from - 1;
+					do {
+						if (current_index < data.max_index) {
+							current_index = data.max_index;
+							pr.step(reimport_files[current_index].path.get_file(), current_index);
+						}
+						OS::get_singleton()->delay_usec(1);
+					} while (!import_threads.is_done_dispatching());
+
+					import_threads.end_work();
+
+					importer->import_threaded_end();
+				}
+
+				from = i + 1;
+			}
+
+		} else {
+			pr.step(reimport_files[i].path.get_file(), i);
+			_reimport_file(reimport_files[i].path);
+		}
 	}
 
 	//reimport groups
@@ -2076,7 +2157,7 @@ void EditorFileSystem::_update_extensions() {
 EditorFileSystem::EditorFileSystem() {
 	ResourceLoader::import = _resource_import;
 	reimport_on_missing_imported_files = GLOBAL_DEF("editor/import/reimport_missing_imported_files", true);
-
+	GLOBAL_DEF("editor/import/use_multiple_threads", true);
 	singleton = this;
 	filesystem = memnew(EditorFileSystemDirectory); //like, empty
 	filesystem->parent = nullptr;
@@ -2103,7 +2184,9 @@ EditorFileSystem::EditorFileSystem() {
 	first_scan = true;
 	scan_changes_pending = false;
 	revalidate_import_files = false;
+	import_threads.init();
 }
 
 EditorFileSystem::~EditorFileSystem() {
+	import_threads.finish();
 }

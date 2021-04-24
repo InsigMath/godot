@@ -61,14 +61,18 @@ void SceneTreeDock::_quick_open() {
 }
 
 void SceneTreeDock::_input(Ref<InputEvent> p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	Ref<InputEventMouseButton> mb = p_event;
 
-	if (mb.is_valid() && !mb->is_pressed() && mb->get_button_index() == BUTTON_LEFT) {
+	if (mb.is_valid() && !mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 		restore_script_editor_on_drag = false; //lost chance
 	}
 }
 
 void SceneTreeDock::_unhandled_key_input(Ref<InputEvent> p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	if (get_focus_owner() && get_focus_owner()->is_text_field()) {
 		return;
 	}
@@ -136,7 +140,11 @@ void SceneTreeDock::instance_scenes(const Vector<String> &p_files, Node *p_paren
 		parent = scene_tree->get_selected();
 	}
 
-	if (!parent || !edited_scene) {
+	if (!parent) {
+		parent = edited_scene;
+	}
+
+	if (!parent) {
 		if (p_files.size() == 1) {
 			accept->set_text(TTR("No parent to instance a child at."));
 		} else {
@@ -608,7 +616,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 			List<Node *> selection = editor_selection->get_selected_node_list();
 			selection.sort_custom<Node::Comparator>(); // sort by index
 			if (MOVING_DOWN) {
-				selection.invert();
+				selection.reverse();
 			}
 
 			int lowest_id = common_parent->get_child_count() - 1;
@@ -897,7 +905,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 			Node *scene = editor_data->get_edited_scene_root();
 
 			if (!scene) {
-				accept->set_text(TTR("This operation can't be done without a scene."));
+				accept->set_text(TTR("Saving the branch as a scene requires having a scene open in the editor."));
 				accept->popup_centered();
 				break;
 			}
@@ -905,7 +913,7 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 			List<Node *> selection = editor_selection->get_selected_node_list();
 
 			if (selection.size() != 1) {
-				accept->set_text(TTR("This operation requires a single selected node."));
+				accept->set_text(vformat(TTR("Saving the branch as a scene requires selecting only one node, but you have selected %d nodes."), selection.size()));
 				accept->popup_centered();
 				break;
 			}
@@ -913,13 +921,13 @@ void SceneTreeDock::_tool_selected(int p_tool, bool p_confirm_override) {
 			Node *tocopy = selection.front()->get();
 
 			if (tocopy == scene) {
-				accept->set_text(TTR("Can not perform with the root node."));
+				accept->set_text(TTR("Can't save the root node branch as an instanced scene.\nTo create an editable copy of the current scene, duplicate it using the FileSystem dock context menu\nor create an inherited scene using Scene > New Inherited Scene... instead."));
 				accept->popup_centered();
 				break;
 			}
 
 			if (tocopy != editor_data->get_edited_scene_root() && tocopy->get_filename() != "") {
-				accept->set_text(TTR("This operation can't be done on instanced scenes."));
+				accept->set_text(TTR("Can't save the branch of an already instanced scene.\nTo create a variation of a scene, you can make an inherited scene based on the instanced scene using Scene > New Inherited Scene... instead."));
 				accept->popup_centered();
 				break;
 			}
@@ -1384,7 +1392,7 @@ void SceneTreeDock::fill_path_renames(Node *p_node, Node *p_new_parent, List<Pai
 		base_path.push_back(n->get_name());
 		n = n->get_parent();
 	}
-	base_path.invert();
+	base_path.reverse();
 
 	Vector<StringName> new_base_path;
 	if (p_new_parent) {
@@ -1394,7 +1402,7 @@ void SceneTreeDock::fill_path_renames(Node *p_node, Node *p_new_parent, List<Pai
 			n = n->get_parent();
 		}
 
-		new_base_path.invert();
+		new_base_path.reverse();
 	}
 
 	_fill_path_renames(base_path, new_base_path, p_node, p_renames);
@@ -1580,7 +1588,7 @@ void SceneTreeDock::_node_prerenamed(Node *p_node, const String &p_new_name) {
 		base_path.push_back(n->get_name());
 		n = n->get_parent();
 	}
-	base_path.invert();
+	base_path.reverse();
 
 	Vector<StringName> new_base_path = base_path;
 	base_path.push_back(p_node->get_name());
@@ -3091,6 +3099,7 @@ SceneTreeDock::SceneTreeDock(EditorNode *p_editor, Node *p_scene_root, EditorSel
 	edit_remote->set_h_size_flags(SIZE_EXPAND_FILL);
 	edit_remote->set_text(TTR("Remote"));
 	edit_remote->set_toggle_mode(true);
+	edit_remote->set_tooltip(TTR("If selected, the Remote scene tree dock will cause the project to stutter every time it updates.\nSwitch back to the Local scene tree dock to improve performance."));
 	edit_remote->connect("pressed", callable_mp(this, &SceneTreeDock::_remote_tree_selected));
 
 	edit_local = memnew(Button);

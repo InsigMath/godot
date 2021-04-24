@@ -131,7 +131,7 @@ bool ViewportTexture::has_alpha() const {
 	return false;
 }
 
-Ref<Image> ViewportTexture::get_data() const {
+Ref<Image> ViewportTexture::get_image() const {
 	ERR_FAIL_COND_V_MSG(!vp, Ref<Image>(), "Viewport Texture must be set to use it.");
 	return RS::get_singleton()->texture_2d_get(vp->texture_rid);
 }
@@ -1163,7 +1163,7 @@ void Viewport::set_world_2d(const Ref<World2D> &p_world_2d) {
 	if (p_world_2d.is_valid()) {
 		world_2d = p_world_2d;
 	} else {
-		WARN_PRINT("Invalid world_3d");
+		WARN_PRINT("Invalid world_2d");
 		world_2d = Ref<World2D>(memnew(World2D));
 	}
 
@@ -1621,10 +1621,10 @@ void Viewport::_gui_call_input(Control *p_control, const Ref<InputEvent> &p_inpu
 	Ref<InputEventMouseButton> mb = p_input;
 
 	bool cant_stop_me_now = (mb.is_valid() &&
-							 (mb->get_button_index() == BUTTON_WHEEL_DOWN ||
-									 mb->get_button_index() == BUTTON_WHEEL_UP ||
-									 mb->get_button_index() == BUTTON_WHEEL_LEFT ||
-									 mb->get_button_index() == BUTTON_WHEEL_RIGHT));
+							 (mb->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN ||
+									 mb->get_button_index() == MOUSE_BUTTON_WHEEL_UP ||
+									 mb->get_button_index() == MOUSE_BUTTON_WHEEL_LEFT ||
+									 mb->get_button_index() == MOUSE_BUTTON_WHEEL_RIGHT));
 	Ref<InputEventPanGesture> pn = p_input;
 	cant_stop_me_now = pn.is_valid() || cant_stop_me_now;
 
@@ -1860,7 +1860,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 
 				gui.mouse_focus_mask = 1 << (mb->get_button_index() - 1);
 
-				if (mb->get_button_index() == BUTTON_LEFT) {
+				if (mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 					gui.drag_accum = Vector2();
 					gui.drag_attempted = false;
 				}
@@ -1883,7 +1883,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 			}
 #endif
 
-			if (mb->get_button_index() == BUTTON_LEFT) { //assign focus
+			if (mb->get_button_index() == MOUSE_BUTTON_LEFT) { //assign focus
 				CanvasItem *ci = gui.mouse_focus;
 				while (ci) {
 					Control *control = Object::cast_to<Control>(ci);
@@ -1914,7 +1914,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 
 			set_input_as_handled();
 
-			if (gui.drag_data.get_type() != Variant::NIL && mb->get_button_index() == BUTTON_LEFT) {
+			if (gui.drag_data.get_type() != Variant::NIL && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 				//alternate drop use (when using force_drag(), as proposed by #5342
 				if (gui.mouse_focus) {
 					_gui_drop(gui.mouse_focus, pos, false);
@@ -1934,7 +1934,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 
 			_gui_cancel_tooltip();
 		} else {
-			if (gui.drag_data.get_type() != Variant::NIL && mb->get_button_index() == BUTTON_LEFT) {
+			if (gui.drag_data.get_type() != Variant::NIL && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 				if (gui.drag_mouse_over) {
 					_gui_drop(gui.drag_mouse_over, gui.drag_mouse_over_pos, false);
 				}
@@ -1978,7 +1978,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 				_gui_call_input(mouse_focus, mb);
 			}
 
-			/*if (gui.drag_data.get_type()!=Variant::NIL && mb->get_button_index()==BUTTON_LEFT) {
+			/*if (gui.drag_data.get_type()!=Variant::NIL && mb->get_button_index()==MOUSE_BUTTON_LEFT) {
 				_propagate_viewport_notification(this,NOTIFICATION_DRAG_END);
 				gui.drag_data=Variant(); //always clear
 			}*/
@@ -2022,7 +2022,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 		Control *over = nullptr;
 
 		// D&D
-		if (!gui.drag_attempted && gui.mouse_focus && mm->get_button_mask() & BUTTON_MASK_LEFT) {
+		if (!gui.drag_attempted && gui.mouse_focus && mm->get_button_mask() & MOUSE_BUTTON_MASK_LEFT) {
 			gui.drag_accum += mm->get_relative();
 			float len = gui.drag_accum.length();
 			if (len > 10) {
@@ -2266,7 +2266,7 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 					Transform2D localizer = gui.drag_mouse_over->get_global_transform_with_canvas().affine_inverse();
 					gui.drag_mouse_over_pos = localizer.xform(viewport_pos);
 
-					if (mm->get_button_mask() & BUTTON_MASK_LEFT) {
+					if (mm->get_button_mask() & MOUSE_BUTTON_MASK_LEFT) {
 						bool can_drop = _gui_drop(gui.drag_mouse_over, gui.drag_mouse_over_pos, true);
 
 						if (!can_drop) {
@@ -2399,29 +2399,27 @@ void Viewport::_gui_input_event(Ref<InputEvent> p_event) {
 		if (from && p_event->is_pressed()) {
 			Control *next = nullptr;
 
-			Input *input = Input::get_singleton();
-
-			if (p_event->is_action_pressed("ui_focus_next") && input->is_action_just_pressed("ui_focus_next")) {
+			if (p_event->is_action_pressed("ui_focus_next", true)) {
 				next = from->find_next_valid_focus();
 			}
 
-			if (p_event->is_action_pressed("ui_focus_prev") && input->is_action_just_pressed("ui_focus_prev")) {
+			if (p_event->is_action_pressed("ui_focus_prev", true)) {
 				next = from->find_prev_valid_focus();
 			}
 
-			if (!mods && p_event->is_action_pressed("ui_up") && input->is_action_just_pressed("ui_up")) {
+			if (!mods && p_event->is_action_pressed("ui_up", true)) {
 				next = from->_get_focus_neighbor(SIDE_TOP);
 			}
 
-			if (!mods && p_event->is_action_pressed("ui_left") && input->is_action_just_pressed("ui_left")) {
+			if (!mods && p_event->is_action_pressed("ui_left", true)) {
 				next = from->_get_focus_neighbor(SIDE_LEFT);
 			}
 
-			if (!mods && p_event->is_action_pressed("ui_right") && input->is_action_just_pressed("ui_right")) {
+			if (!mods && p_event->is_action_pressed("ui_right", true)) {
 				next = from->_get_focus_neighbor(SIDE_RIGHT);
 			}
 
-			if (!mods && p_event->is_action_pressed("ui_down") && input->is_action_just_pressed("ui_down")) {
+			if (!mods && p_event->is_action_pressed("ui_down", true)) {
 				next = from->_get_focus_neighbor(SIDE_BOTTOM);
 			}
 
@@ -2783,7 +2781,7 @@ bool Viewport::_sub_windows_forward_input(const Ref<InputEvent> &p_event) {
 		ERR_FAIL_COND_V(gui.subwindow_focused == nullptr, false);
 
 		Ref<InputEventMouseButton> mb = p_event;
-		if (mb.is_valid() && !mb->is_pressed() && mb->get_button_index() == BUTTON_LEFT) {
+		if (mb.is_valid() && !mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 			if (gui.subwindow_drag == SUB_WINDOW_DRAG_CLOSE) {
 				if (gui.subwindow_drag_close_rect.has_point(mb->get_position())) {
 					//close window
@@ -2908,7 +2906,7 @@ bool Viewport::_sub_windows_forward_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	//if the event is a mouse button, we need to check whether another window was clicked
 
-	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == BUTTON_LEFT) {
+	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 		bool click_on_window = false;
 		for (int i = gui.sub_windows.size() - 1; i >= 0; i--) {
 			SubWindow &sw = gui.sub_windows.write[i];
@@ -3067,6 +3065,7 @@ void Viewport::input(const Ref<InputEvent> &p_event, bool p_local_coords) {
 }
 
 void Viewport::unhandled_input(const Ref<InputEvent> &p_event, bool p_local_coords) {
+	ERR_FAIL_COND(p_event.is_null());
 	ERR_FAIL_COND(!is_inside_tree());
 
 	if (disable_input || !_can_consume_input_events()) {
@@ -3176,20 +3175,17 @@ Variant Viewport::gui_get_drag_data() const {
 	return gui.drag_data;
 }
 
-String Viewport::get_configuration_warning() const {
+TypedArray<String> Viewport::get_configuration_warnings() const {
 	/*if (get_parent() && !Object::cast_to<Control>(get_parent()) && !render_target) {
 		return TTR("This viewport is not set as render target. If you intend for it to display its contents directly to the screen, make it a child of a Control so it can obtain a size. Otherwise, make it a RenderTarget and assign its internal texture to some node for display.");
 	}*/
 
-	String warning = Node::get_configuration_warning();
+	TypedArray<String> warnings = Node::get_configuration_warnings();
 
 	if (size.x == 0 || size.y == 0) {
-		if (!warning.is_empty()) {
-			warning += "\n\n";
-		}
-		warning += TTR("Viewport size must be greater than 0 to render anything.");
+		warnings.push_back(TTR("Viewport size must be greater than 0 to render anything."));
 	}
-	return warning;
+	return warnings;
 }
 
 void Viewport::gui_reset_canvas_sort_index() {
@@ -3227,8 +3223,9 @@ Viewport::ScreenSpaceAA Viewport::get_screen_space_aa() const {
 }
 
 void Viewport::set_use_debanding(bool p_use_debanding) {
-	if (use_debanding == p_use_debanding)
+	if (use_debanding == p_use_debanding) {
 		return;
+	}
 	use_debanding = p_use_debanding;
 	RS::get_singleton()->viewport_set_use_debanding(viewport, p_use_debanding);
 }

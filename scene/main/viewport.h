@@ -77,7 +77,7 @@ public:
 
 	virtual bool has_alpha() const override;
 
-	virtual Ref<Image> get_data() const override;
+	virtual Ref<Image> get_image() const override;
 
 	ViewportTexture();
 	~ViewportTexture();
@@ -580,7 +580,7 @@ public:
 	void gui_reset_canvas_sort_index();
 	int gui_get_canvas_sort_index();
 
-	virtual String get_configuration_warning() const override;
+	TypedArray<String> get_configuration_warnings() const override;
 
 	void set_debug_draw(DebugDraw p_debug_draw);
 	DebugDraw get_debug_draw() const;

@@ -92,7 +92,6 @@
 #include "editor/filesystem_dock.h"
 #include "editor/import/editor_import_collada.h"
 #include "editor/import/resource_importer_bitmask.h"
-#include "editor/import/resource_importer_csv.h"
 #include "editor/import/resource_importer_csv_translation.h"
 #include "editor/import/resource_importer_image.h"
 #include "editor/import/resource_importer_layered_texture.h"
@@ -102,6 +101,7 @@
 #include "editor/import/resource_importer_texture.h"
 #include "editor/import/resource_importer_texture_atlas.h"
 #include "editor/import/resource_importer_wav.h"
+#include "editor/import/scene_import_settings.h"
 #include "editor/import/scene_importer_mesh_node_3d.h"
 #include "editor/import_dock.h"
 #include "editor/multi_node_edit.h"
@@ -390,6 +390,8 @@ void EditorNode::_update_title() {
 }
 
 void EditorNode::_unhandled_input(const Ref<InputEvent> &p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	Ref<InputEventKey> k = p_event;
 	if (k.is_valid() && k->is_pressed() && !k->is_echo()) {
 		EditorPlugin *old_editor = editor_plugin_screen;
@@ -592,6 +594,9 @@ void EditorNode::_notification(int p_what) {
 				_editor_select(EDITOR_3D);
 			}
 
+			// Save the project after opening to mark it as last modified.
+			ProjectSettings::get_singleton()->save();
+
 			/* DO NOT LOAD SCENES HERE, WAIT FOR FILE SCANNING AND REIMPORT TO COMPLETE */
 		} break;
 
@@ -789,17 +794,27 @@ void EditorNode::_fs_changed() {
 			}
 			preset.unref();
 		}
+
 		if (preset.is_null()) {
-			export_error = vformat(
-					"Invalid export preset name: %s. Make sure `export_presets.cfg` is present in the current directory.",
-					preset_name);
+			DirAccessRef da = DirAccess::create(DirAccess::ACCESS_RESOURCES);
+			if (da->file_exists("res://export_presets.cfg")) {
+				export_error = vformat(
+						"Invalid export preset name: %s.\nThe following presets were detected in this project's `export_presets.cfg`:\n\n",
+						preset_name);
+				for (int i = 0; i < EditorExport::get_singleton()->get_export_preset_count(); ++i) {
+					// Write the preset name between double quotes since it needs to be written between quotes on the command line if it contains spaces.
+					export_error += vformat("        \"%s\"\n", EditorExport::get_singleton()->get_export_preset(i)->get_name());
+				}
+			} else {
+				export_error = "This project doesn't have an `export_presets.cfg` file at its root.\nCreate an export preset from the \"Project > Export\" dialog and try again.";
+			}
 		} else {
 			Ref<EditorExportPlatform> platform = preset->get_platform();
 			const String export_path = export_defer.path.is_empty() ? preset->get_export_path() : export_defer.path;
 			if (export_path.is_empty()) {
-				export_error = vformat("Export preset '%s' doesn't have a default export path, and none was specified.", preset_name);
+				export_error = vformat("Export preset \"%s\" doesn't have a default export path, and none was specified.", preset_name);
 			} else if (platform.is_null()) {
-				export_error = vformat("Export preset '%s' doesn't have a matching platform.", preset_name);
+				export_error = vformat("Export preset \"%s\" doesn't have a matching platform.", preset_name);
 			} else {
 				Error err = OK;
 				if (export_defer.pack_only) { // Only export .pck or .zip data pack.
@@ -812,7 +827,7 @@ void EditorNode::_fs_changed() {
 					String config_error;
 					bool missing_templates;
 					if (!platform->can_export(preset, config_error, missing_templates)) {
-						ERR_PRINT(vformat("Cannot export project with preset '%s' due to configuration errors:\n%s", preset_name, config_error));
+						ERR_PRINT(vformat("Cannot export project with preset \"%s\" due to configuration errors:\n%s", preset_name, config_error));
 						err = missing_templates ? ERR_FILE_NOT_FOUND : ERR_UNCONFIGURED;
 					} else {
 						err = platform->export_project(preset, export_defer.debug, export_path);
@@ -822,13 +837,13 @@ void EditorNode::_fs_changed() {
 					case OK:
 						break;
 					case ERR_FILE_NOT_FOUND:
-						export_error = vformat("Project export failed for preset '%s', the export template appears to be missing.", preset_name);
+						export_error = vformat("Project export failed for preset \"%s\". The export template appears to be missing.", preset_name);
 						break;
 					case ERR_FILE_BAD_PATH:
-						export_error = vformat("Project export failed for preset '%s', the target path '%s' appears to be invalid.", preset_name, export_path);
+						export_error = vformat("Project export failed for preset \"%s\". The target path \"%s\" appears to be invalid.", preset_name, export_path);
 						break;
 					default:
-						export_error = vformat("Project export failed with error code %d for preset '%s'.", (int)err, preset_name);
+						export_error = vformat("Project export failed with error code %d for preset \"%s\".", (int)err, preset_name);
 						break;
 				}
 			}
@@ -1089,13 +1104,23 @@ void EditorNode::save_resource_as(const Ref<Resource> &p_resource, const String 
 	file->clear_filters();
 
 	List<String> preferred;
-	for (int i = 0; i < extensions.size(); i++) {
-		if (p_resource->is_class("Script") && (extensions[i] == "tres" || extensions[i] == "res" || extensions[i] == "xml")) {
+	for (List<String>::Element *E = extensions.front(); E; E = E->next()) {
+		if (p_resource->is_class("Script") && (E->get() == "tres" || E->get() == "res")) {
 			//this serves no purpose and confused people
 			continue;
 		}
-		file->add_filter("*." + extensions[i] + " ; " + extensions[i].to_upper());
-		preferred.push_back(extensions[i]);
+		file->add_filter("*." + E->get() + " ; " + E->get().to_upper());
+		preferred.push_back(E->get());
+	}
+	// Lowest priority extension
+	List<String>::Element *res_element = preferred.find("res");
+	if (res_element) {
+		preferred.move_to_back(res_element);
+	}
+	// Highest priority extension
+	List<String>::Element *tres_element = preferred.find("tres");
+	if (tres_element) {
+		preferred.move_to_front(tres_element);
 	}
 
 	if (p_at_path != String()) {
@@ -1364,18 +1389,18 @@ void EditorNode::_save_scene_with_preview(String p_file, int p_idx) {
 		// which would result in an invalid texture.
 		if (c3d == 0 && c2d == 0) {
 			img.instance();
-			img->create(1, 1, 0, Image::FORMAT_RGB8);
+			img->create(1, 1, false, Image::FORMAT_RGB8);
 		} else if (c3d < c2d) {
 			Ref<ViewportTexture> viewport_texture = scene_root->get_texture();
 			if (viewport_texture->get_width() > 0 && viewport_texture->get_height() > 0) {
-				img = viewport_texture->get_data();
+				img = viewport_texture->get_image();
 			}
 		} else {
 			// The 3D editor may be disabled as a feature, but scenes can still be opened.
 			// This check prevents the preview from regenerating in case those scenes are then saved.
 			Ref<EditorFeatureProfile> profile = feature_profile_manager->get_current_profile();
 			if (profile.is_valid() && !profile->is_feature_disabled(EditorFeatureProfile::FEATURE_3D)) {
-				img = Node3DEditor::get_singleton()->get_editor_viewport(0)->get_viewport_node()->get_texture()->get_data();
+				img = Node3DEditor::get_singleton()->get_editor_viewport(0)->get_viewport_node()->get_texture()->get_image();
 			}
 		}
 
@@ -2822,7 +2847,7 @@ void EditorNode::_save_screenshot(NodePath p_path) {
 	ERR_FAIL_COND_MSG(!viewport, "Cannot get editor main control viewport.");
 	Ref<ViewportTexture> texture = viewport->get_texture();
 	ERR_FAIL_COND_MSG(texture.is_null(), "Cannot get editor main control viewport texture.");
-	Ref<Image> img = texture->get_data();
+	Ref<Image> img = texture->get_image();
 	ERR_FAIL_COND_MSG(img.is_null(), "Cannot get editor main control viewport texture image.");
 	Error error = img->save_png(p_path);
 	ERR_FAIL_COND_MSG(error != OK, "Cannot save screenshot to file '" + p_path + "'.");
@@ -4825,15 +4850,15 @@ void EditorNode::_scene_tab_input(const Ref<InputEvent> &p_input) {
 
 	if (mb.is_valid()) {
 		if (scene_tabs->get_hovered_tab() >= 0) {
-			if (mb->get_button_index() == BUTTON_MIDDLE && mb->is_pressed()) {
+			if (mb->get_button_index() == MOUSE_BUTTON_MIDDLE && mb->is_pressed()) {
 				_scene_tab_closed(scene_tabs->get_hovered_tab());
 			}
 		} else {
-			if ((mb->get_button_index() == BUTTON_LEFT && mb->is_doubleclick()) || (mb->get_button_index() == BUTTON_MIDDLE && mb->is_pressed())) {
+			if ((mb->get_button_index() == MOUSE_BUTTON_LEFT && mb->is_doubleclick()) || (mb->get_button_index() == MOUSE_BUTTON_MIDDLE && mb->is_pressed())) {
 				_menu_option_confirm(FILE_NEW_SCENE, true);
 			}
 		}
-		if (mb->get_button_index() == BUTTON_RIGHT && mb->is_pressed()) {
+		if (mb->get_button_index() == MOUSE_BUTTON_RIGHT && mb->is_pressed()) {
 			// context menu
 			scene_tabs_context_menu->clear();
 			scene_tabs_context_menu->set_size(Size2(1, 1));
@@ -5095,8 +5120,8 @@ Variant EditorNode::drag_resource(const Ref<Resource> &p_res, Control *p_from) {
 
 	{
 		//todo make proper previews
-		Ref<ImageTexture> pic = gui_base->get_theme_icon("FileBigThumb", "EditorIcons");
-		Ref<Image> img = pic->get_data();
+		Ref<ImageTexture> texture = gui_base->get_theme_icon("FileBigThumb", "EditorIcons");
+		Ref<Image> img = texture->get_image();
 		img = img->duplicate();
 		img->resize(48, 48); //meh
 		Ref<ImageTexture> resized_pic = Ref<ImageTexture>(memnew(ImageTexture));
@@ -5768,10 +5793,6 @@ EditorNode::EditorNode() {
 		import_csv_translation.instance();
 		ResourceFormatImporter::get_singleton()->add_importer(import_csv_translation);
 
-		Ref<ResourceImporterCSV> import_csv;
-		import_csv.instance();
-		ResourceFormatImporter::get_singleton()->add_importer(import_csv);
-
 		Ref<ResourceImporterWAV> import_wav;
 		import_wav.instance();
 		ResourceFormatImporter::get_singleton()->add_importer(import_wav);
@@ -5871,6 +5892,8 @@ EditorNode::EditorNode() {
 	EDITOR_DEF("interface/inspector/resources_to_open_in_new_inspector", "Script,MeshLibrary,TileSet");
 	EDITOR_DEF("interface/inspector/default_color_picker_mode", 0);
 	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::INT, "interface/inspector/default_color_picker_mode", PROPERTY_HINT_ENUM, "RGB,HSV,RAW", PROPERTY_USAGE_DEFAULT));
+	EDITOR_DEF("interface/inspector/default_color_picker_shape", (int32_t)ColorPicker::SHAPE_VHS_CIRCLE);
+	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::INT, "interface/inspector/default_color_picker_shape", PROPERTY_HINT_ENUM, "HSV Rectangle,HSV Rectangle Wheel,VHS Circle", PROPERTY_USAGE_DEFAULT));
 	EDITOR_DEF("run/auto_save/save_before_running", true);
 
 	theme_base = memnew(Control);
@@ -6169,6 +6192,9 @@ EditorNode::EditorNode() {
 	project_settings = memnew(ProjectSettingsEditor(&editor_data));
 	gui_base->add_child(project_settings);
 
+	scene_import_settings = memnew(SceneImportSettings);
+	gui_base->add_child(scene_import_settings);
+
 	export_template_manager = memnew(ExportTemplateManager);
 	gui_base->add_child(export_template_manager);
 
@@ -6457,8 +6483,8 @@ EditorNode::EditorNode() {
 	video_driver->connect("item_selected", callable_mp(this, &EditorNode::_video_driver_selected));
 	video_driver->add_theme_font_override("font", gui_base->get_theme_font("bold", "EditorFonts"));
 	video_driver->add_theme_font_size_override("font_size", gui_base->get_theme_font_size("bold_size", "EditorFonts"));
-	// TODO re-enable when GLES2 is ported
-	video_driver->set_disabled(true);
+	// TODO: Show again when OpenGL is ported.
+	video_driver->set_visible(false);
 	right_menu_hb->add_child(video_driver);
 
 #ifndef _MSC_VER

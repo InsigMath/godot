@@ -2706,6 +2706,8 @@ void ScriptEditor::drop_data_fw(const Point2 &p_point, const Variant &p_data, Co
 }
 
 void ScriptEditor::_unhandled_key_input(const Ref<InputEvent> &p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	if (!is_visible_in_tree() || !p_event->is_pressed() || p_event->is_echo()) {
 		return;
 	}
@@ -2737,7 +2739,7 @@ void ScriptEditor::_script_list_gui_input(const Ref<InputEvent> &ev) {
 	Ref<InputEventMouseButton> mb = ev;
 	if (mb.is_valid() && mb->is_pressed()) {
 		switch (mb->get_button_index()) {
-			case BUTTON_MIDDLE: {
+			case MOUSE_BUTTON_MIDDLE: {
 				// Right-click selects automatically; middle-click does not.
 				int idx = script_list->get_item_at_position(mb->get_position(), true);
 				if (idx >= 0) {
@@ -2747,7 +2749,7 @@ void ScriptEditor::_script_list_gui_input(const Ref<InputEvent> &ev) {
 				}
 			} break;
 
-			case BUTTON_RIGHT: {
+			case MOUSE_BUTTON_RIGHT: {
 				_make_script_list_context_menu();
 			} break;
 		}

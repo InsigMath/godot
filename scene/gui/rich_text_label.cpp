@@ -147,7 +147,7 @@ RichTextLabel::Item *RichTextLabel::_get_item_at_pos(RichTextLabel::Item *p_item
 			case ITEM_TEXT: {
 				ItemText *t = (ItemText *)it;
 				offset += t->text.length();
-				if (offset >= p_position) {
+				if (offset > p_position) {
 					return it;
 				}
 			} break;
@@ -588,7 +588,8 @@ void RichTextLabel::_shape_line(ItemFrame *p_frame, int p_line, const Ref<Font> 
 					offset.x += table->columns[column].width + hseparation + frame->padding.size.x;
 
 					row_height = MAX(yofs, row_height);
-					if (column == col_count - 1) {
+					// Add row height after last column of the row or last cell of the table.
+					if (column == col_count - 1 || E->next() == nullptr) {
 						offset.x = 0;
 						row_height += vseparation;
 						table->total_height += row_height;
@@ -759,7 +760,7 @@ int RichTextLabel::_draw_line(ItemFrame *p_frame, int p_line, const Vector2 &p_o
 
 		//draw_rect(Rect2(p_ofs + off, TS->shaped_text_get_size(rid)), Color(1,0,0), false, 2); //DEBUG_RECTS
 
-		off.y += TS->shaped_text_get_ascent(rid);
+		off.y += TS->shaped_text_get_ascent(rid) + l.text_buf->get_spacing_top();
 		// Draw inlined objects.
 		Array objects = TS->shaped_text_get_objects(rid);
 		for (int i = 0; i < objects.size(); i++) {
@@ -1078,7 +1079,7 @@ int RichTextLabel::_draw_line(ItemFrame *p_frame, int p_line, const Vector2 &p_o
 				off.x += glyphs[i].advance;
 			}
 		}
-		off.y += TS->shaped_text_get_descent(rid);
+		off.y += TS->shaped_text_get_descent(rid) + l.text_buf->get_spacing_bottom();
 	}
 
 	return line_count;
@@ -1117,7 +1118,8 @@ void RichTextLabel::_find_click(ItemFrame *p_frame, const Point2i &p_click, Item
 
 	Point2 ofs = text_rect.get_position() + Vector2(0, main->lines[from_line].offset.y - vofs);
 	while (ofs.y < size.height && from_line < main->lines.size()) {
-		ofs.y += _find_click_in_line(p_frame, from_line, ofs, text_rect.size.x, p_click, r_click_frame, r_click_line, r_click_item, r_click_char);
+		_find_click_in_line(p_frame, from_line, ofs, text_rect.size.x, p_click, r_click_frame, r_click_line, r_click_item, r_click_char);
+		ofs.y += main->lines[from_line].text_buf->get_size().y;
 		if (((r_click_item != nullptr) && ((*r_click_item) != nullptr)) || ((r_click_frame != nullptr) && ((*r_click_frame) != nullptr))) {
 			if (r_outside != nullptr) {
 				*r_outside = false;
@@ -1172,7 +1174,7 @@ float RichTextLabel::_find_click_in_line(ItemFrame *p_frame, int p_line, const V
 			} break;
 		}
 
-		off.y += TS->shaped_text_get_ascent(rid);
+		off.y += TS->shaped_text_get_ascent(rid) + l.text_buf->get_spacing_top();
 
 		Array objects = TS->shaped_text_get_objects(rid);
 		for (int i = 0; i < objects.size(); i++) {
@@ -1236,7 +1238,7 @@ float RichTextLabel::_find_click_in_line(ItemFrame *p_frame, int p_line, const V
 		if (rect.has_point(p_click) && !table_hit) {
 			char_pos = TS->shaped_text_hit_test_position(rid, p_click.x - rect.position.x);
 		}
-		off.y += TS->shaped_text_get_descent(rid);
+		off.y += TS->shaped_text_get_descent(rid) + l.text_buf->get_spacing_bottom();
 	}
 
 	if (char_pos >= 0) {
@@ -1244,8 +1246,19 @@ float RichTextLabel::_find_click_in_line(ItemFrame *p_frame, int p_line, const V
 		if (r_click_item != nullptr) {
 			Item *it = p_frame->lines[p_line].from;
 			Item *it_to = (p_line + 1 < p_frame->lines.size()) ? p_frame->lines[p_line + 1].from : nullptr;
-			it = _get_item_at_pos(it, it_to, char_pos);
-			*r_click_item = it;
+			if (char_pos == p_frame->lines[p_line].char_count) {
+				// Selection after the end of line, select last item.
+				if (it_to != nullptr) {
+					*r_click_item = _get_prev_item(it_to);
+				} else {
+					for (Item *i = it; i && i != it_to; i = _get_next_item(i)) {
+						*r_click_item = i;
+					}
+				}
+			} else {
+				// Selection in the line.
+				*r_click_item = _get_item_at_pos(it, it_to, char_pos);
+			}
 		}
 
 		if (r_click_frame != nullptr) {
@@ -1456,6 +1469,8 @@ Control::CursorShape RichTextLabel::get_cursor_shape(const Point2 &p_pos) const 
 }
 
 void RichTextLabel::_gui_input(Ref<InputEvent> p_event) {
+	ERR_FAIL_COND(p_event.is_null());
+
 	Ref<InputEventMouseButton> b = p_event;
 
 	if (b.is_valid()) {
@@ -1466,7 +1481,7 @@ void RichTextLabel::_gui_input(Ref<InputEvent> p_event) {
 			return;
 		}
 
-		if (b->get_button_index() == BUTTON_LEFT) {
+		if (b->get_button_index() == MOUSE_BUTTON_LEFT) {
 			if (b->is_pressed() && !b->is_doubleclick()) {
 				scroll_updated = false;
 				ItemFrame *c_frame = nullptr;
@@ -1551,12 +1566,12 @@ void RichTextLabel::_gui_input(Ref<InputEvent> p_event) {
 			}
 		}
 
-		if (b->get_button_index() == BUTTON_WHEEL_UP) {
+		if (b->get_button_index() == MOUSE_BUTTON_WHEEL_UP) {
 			if (scroll_active) {
 				vscroll->set_value(vscroll->get_value() - vscroll->get_page() * b->get_factor() * 0.5 / 8);
 			}
 		}
-		if (b->get_button_index() == BUTTON_WHEEL_DOWN) {
+		if (b->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN) {
 			if (scroll_active) {
 				vscroll->set_value(vscroll->get_value() + vscroll->get_page() * b->get_factor() * 0.5 / 8);
 			}
@@ -3743,7 +3758,9 @@ void RichTextLabel::set_effects(const Vector<Variant> &effects) {
 		custom_effects.push_back(effect);
 	}
 
-	parse_bbcode(bbcode);
+	if ((bbcode != "") && use_bbcode) {
+		parse_bbcode(bbcode);
+	}
 }
 
 Vector<Variant> RichTextLabel::get_effects() {
@@ -3760,7 +3777,9 @@ void RichTextLabel::install_effect(const Variant effect) {
 
 	if (rteffect.is_valid()) {
 		custom_effects.push_back(effect);
-		parse_bbcode(bbcode);
+		if ((bbcode != "") && use_bbcode) {
+			parse_bbcode(bbcode);
+		}
 	}
 }
 
@@ -3986,14 +4005,16 @@ void RichTextLabel::set_fixed_size_to_width(int p_width) {
 }
 
 Size2 RichTextLabel::get_minimum_size() const {
-	Size2 size(0, 0);
+	Ref<StyleBox> style = get_theme_stylebox("normal");
+	Size2 size = style->get_minimum_size();
+
 	if (fixed_width != -1) {
-		size.x = fixed_width;
+		size.x += fixed_width;
 	}
 
 	if (fixed_width != -1 || fit_content_height) {
 		const_cast<RichTextLabel *>(this)->_validate_line_caches(main);
-		size.y = get_content_height();
+		size.y += get_content_height();
 	}
 
 	return size;

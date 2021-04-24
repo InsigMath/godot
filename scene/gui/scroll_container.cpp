@@ -88,13 +88,15 @@ void ScrollContainer::_cancel_drag() {
 }
 
 void ScrollContainer::_gui_input(const Ref<InputEvent> &p_gui_input) {
+	ERR_FAIL_COND(p_gui_input.is_null());
+
 	double prev_v_scroll = v_scroll->get_value();
 	double prev_h_scroll = h_scroll->get_value();
 
 	Ref<InputEventMouseButton> mb = p_gui_input;
 
 	if (mb.is_valid()) {
-		if (mb->get_button_index() == BUTTON_WHEEL_UP && mb->is_pressed()) {
+		if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_UP && mb->is_pressed()) {
 			// only horizontal is enabled, scroll horizontally
 			if (h_scroll->is_visible() && (!v_scroll->is_visible() || mb->get_shift())) {
 				h_scroll->set_value(h_scroll->get_value() - h_scroll->get_page() / 8 * mb->get_factor());
@@ -103,7 +105,7 @@ void ScrollContainer::_gui_input(const Ref<InputEvent> &p_gui_input) {
 			}
 		}
 
-		if (mb->get_button_index() == BUTTON_WHEEL_DOWN && mb->is_pressed()) {
+		if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN && mb->is_pressed()) {
 			// only horizontal is enabled, scroll horizontally
 			if (h_scroll->is_visible() && (!v_scroll->is_visible() || mb->get_shift())) {
 				h_scroll->set_value(h_scroll->get_value() + h_scroll->get_page() / 8 * mb->get_factor());
@@ -112,13 +114,13 @@ void ScrollContainer::_gui_input(const Ref<InputEvent> &p_gui_input) {
 			}
 		}
 
-		if (mb->get_button_index() == BUTTON_WHEEL_LEFT && mb->is_pressed()) {
+		if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_LEFT && mb->is_pressed()) {
 			if (h_scroll->is_visible_in_tree()) {
 				h_scroll->set_value(h_scroll->get_value() - h_scroll->get_page() * mb->get_factor() / 8);
 			}
 		}
 
-		if (mb->get_button_index() == BUTTON_WHEEL_RIGHT && mb->is_pressed()) {
+		if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_RIGHT && mb->is_pressed()) {
 			if (h_scroll->is_visible_in_tree()) {
 				h_scroll->set_value(h_scroll->get_value() + h_scroll->get_page() * mb->get_factor() / 8);
 			}
@@ -132,7 +134,7 @@ void ScrollContainer::_gui_input(const Ref<InputEvent> &p_gui_input) {
 			return;
 		}
 
-		if (mb->get_button_index() != BUTTON_LEFT) {
+		if (mb->get_button_index() != MOUSE_BUTTON_LEFT) {
 			return;
 		}
 
@@ -542,8 +544,8 @@ void ScrollContainer::set_follow_focus(bool p_follow) {
 	follow_focus = p_follow;
 }
 
-String ScrollContainer::get_configuration_warning() const {
-	String warning = Container::get_configuration_warning();
+TypedArray<String> ScrollContainer::get_configuration_warnings() const {
+	TypedArray<String> warnings = Container::get_configuration_warnings();
 
 	int found = 0;
 
@@ -563,12 +565,10 @@ String ScrollContainer::get_configuration_warning() const {
 	}
 
 	if (found != 1) {
-		if (!warning.is_empty()) {
-			warning += "\n\n";
-		}
-		warning += TTR("ScrollContainer is intended to work with a single child control.\nUse a container as child (VBox, HBox, etc.), or a Control and set the custom minimum size manually.");
+		warnings.push_back(TTR("ScrollContainer is intended to work with a single child control.\nUse a container as child (VBox, HBox, etc.), or a Control and set the custom minimum size manually."));
 	}
-	return warning;
+
+	return warnings;
 }
 
 HScrollBar *ScrollContainer::get_h_scrollbar() {
