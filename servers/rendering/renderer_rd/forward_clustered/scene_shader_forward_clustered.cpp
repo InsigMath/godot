@@ -30,6 +30,7 @@
 
 #include "scene_shader_forward_clustered.h"
 #include "core/config/project_settings.h"
+#include "core/math/math_defs.h"
 #include "render_forward_clustered.h"
 
 using namespace RendererSceneRenderImplementation;
@@ -73,6 +74,7 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 	uses_time = false;
 	writes_modelview_or_projection = false;
 	uses_world_coordinates = false;
+	uses_particle_trails = false;
 
 	int depth_drawi = DEPTH_DRAW_OPAQUE;
 
@@ -101,6 +103,7 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 
 	actions.render_mode_flags["unshaded"] = &unshaded;
 	actions.render_mode_flags["wireframe"] = &wireframe;
+	actions.render_mode_flags["particle_trails"] = &uses_particle_trails;
 
 	actions.usage_flag_pointers["ALPHA"] = &uses_alpha;
 	actions.render_mode_flags["depth_prepass_alpha"] = &uses_depth_pre_pass;
@@ -144,12 +147,17 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 	for (int i = 0; i < gen_code.defines.size(); i++) {
 		print_line(gen_code.defines[i]);
 	}
+
+	Map<String, String>::Element * el = gen_code.code.front();
+	while (el) {
+		print_line("\n**code " + el->key() + ":\n" + el->value());
+
+		el = el->next();
+	}
+
 	print_line("\n**uniforms:\n" + gen_code.uniforms);
-	print_line("\n**vertex_globals:\n" + gen_code.vertex_global);
-	print_line("\n**vertex_code:\n" + gen_code.vertex);
-	print_line("\n**fragment_globals:\n" + gen_code.fragment_global);
-	print_line("\n**fragment_code:\n" + gen_code.fragment);
-	print_line("\n**light_code:\n" + gen_code.light);
+	print_line("\n**vertex_globals:\n" + gen_code.stage_globals[ShaderCompilerRD::STAGE_VERTEX]);
+	print_line("\n**fragment_globals:\n" + gen_code.stage_globals[ShaderCompilerRD::STAGE_FRAGMENT]);
 #endif
 	shader_singleton->shader.version_set_code(version, gen_code.code, gen_code.uniforms, gen_code.stage_globals[ShaderCompilerRD::STAGE_VERTEX], gen_code.stage_globals[ShaderCompilerRD::STAGE_FRAGMENT], gen_code.defines);
 	ERR_FAIL_COND(!shader_singleton->shader.version_is_valid(version));
@@ -303,7 +311,7 @@ void SceneShaderForwardClustered::ShaderData::set_code(const String &p_code) {
 						//none, leave empty
 					} else if (k == SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS) {
 						blend_state = blend_state_depth_normal_roughness;
-					} else if (k == SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS_AND_GIPROBE) {
+					} else if (k == SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS_AND_VOXEL_GI) {
 						blend_state = blend_state_depth_normal_roughness_giprobe;
 					} else if (k == SHADER_VERSION_DEPTH_PASS_WITH_MATERIAL) {
 						blend_state = RD::PipelineColorBlendState::create_disabled(5); //writes to normal and roughness in opaque way
@@ -538,11 +546,9 @@ SceneShaderForwardClustered::~SceneShaderForwardClustered() {
 	RD::get_singleton()->free(default_vec4_xform_buffer);
 	RD::get_singleton()->free(shadow_sampler);
 
-	storage->free(wireframe_material_shader);
 	storage->free(overdraw_material_shader);
 	storage->free(default_shader);
 
-	storage->free(wireframe_material);
 	storage->free(overdraw_material);
 	storage->free(default_material);
 }
@@ -552,30 +558,19 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 
 	{
 		Vector<String> shader_versions;
-		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n");
-		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_DUAL_PARABOLOID\n");
-		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_NORMAL_ROUGHNESS\n");
-		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_NORMAL_ROUGHNESS\n#define MODE_RENDER_GIPROBE\n");
-		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_MATERIAL\n");
-		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_SDF\n");
-		shader_versions.push_back("");
-		shader_versions.push_back("\n#define USE_FORWARD_GI\n");
-		shader_versions.push_back("\n#define MODE_MULTIPLE_RENDER_TARGETS\n");
-		shader_versions.push_back("\n#define USE_LIGHTMAP\n");
-		shader_versions.push_back("\n#define MODE_MULTIPLE_RENDER_TARGETS\n#define USE_LIGHTMAP\n");
-		shader.initialize(shader_versions, p_defines);
+		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n"); // SHADER_VERSION_DEPTH_PASS
+		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_DUAL_PARABOLOID\n"); // SHADER_VERSION_DEPTH_PASS_DP
+		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_NORMAL_ROUGHNESS\n"); // SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS
+		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_NORMAL_ROUGHNESS\n#define MODE_RENDER_VOXEL_GI\n"); // SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS_AND_GIPROBE
+		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_MATERIAL\n"); // SHADER_VERSION_DEPTH_PASS_WITH_MATERIAL
+		shader_versions.push_back("\n#define MODE_RENDER_DEPTH\n#define MODE_RENDER_SDF\n"); // SHADER_VERSION_DEPTH_PASS_WITH_SDF
+		shader_versions.push_back(""); // SHADER_VERSION_COLOR_PASS
+		shader_versions.push_back("\n#define USE_FORWARD_GI\n"); // SHADER_VERSION_COLOR_PASS_WITH_FORWARD_GI
+		shader_versions.push_back("\n#define MODE_MULTIPLE_RENDER_TARGETS\n"); // SHADER_VERSION_COLOR_PASS_WITH_SEPARATE_SPECULAR
+		shader_versions.push_back("\n#define USE_LIGHTMAP\n"); // SHADER_VERSION_LIGHTMAP_COLOR_PASS
+		shader_versions.push_back("\n#define MODE_MULTIPLE_RENDER_TARGETS\n#define USE_LIGHTMAP\n"); // SHADER_VERSION_LIGHTMAP_COLOR_PASS_WITH_SEPARATE_SPECULAR
 
-		/*
-		if (p_is_low_end) {
-			//disable the high end versions
-			shader.set_variant_enabled(SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS, false);
-			shader.set_variant_enabled(SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS_AND_GIPROBE, false);
-			shader.set_variant_enabled(SHADER_VERSION_DEPTH_PASS_WITH_SDF, false);
-			shader.set_variant_enabled(SHADER_VERSION_COLOR_PASS_WITH_FORWARD_GI, false);
-			shader.set_variant_enabled(SHADER_VERSION_COLOR_PASS_WITH_SEPARATE_SPECULAR, false);
-			shader.set_variant_enabled(SHADER_VERSION_LIGHTMAP_COLOR_PASS_WITH_SEPARATE_SPECULAR, false);
-		}
-		*/
+		shader.initialize(shader_versions, p_defines);
 	}
 
 	storage->shader_set_data_request_function(RendererStorageRD::SHADER_TYPE_3D, _create_shader_funcs);
@@ -613,6 +608,9 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 		//builtins
 
 		actions.renames["TIME"] = "scene_data.time";
+		actions.renames["PI"] = _MKSTR(Math_PI);
+		actions.renames["TAU"] = _MKSTR(Math_TAU);
+		actions.renames["E"] = _MKSTR(Math_E);
 		actions.renames["VIEWPORT_SIZE"] = "scene_data.viewport_size";
 
 		actions.renames["FRAGCOORD"] = "gl_FragCoord";
@@ -656,6 +654,11 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 		actions.renames["CUSTOM1"] = "custom1_attrib";
 		actions.renames["CUSTOM2"] = "custom2_attrib";
 		actions.renames["CUSTOM3"] = "custom3_attrib";
+
+		// not implemented but need these just in case code is in the shaders
+		actions.renames["VIEW_INDEX"] = "0";
+		actions.renames["VIEW_MONO_LEFT"] = "0";
+		actions.renames["VIEW_RIGHT"] = "1";
 
 		//for light
 		actions.renames["VIEW"] = "view";
@@ -714,6 +717,7 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 		actions.render_mode_defines["ensure_correct_normals"] = "#define ENSURE_CORRECT_NORMALS\n";
 		actions.render_mode_defines["cull_front"] = "#define DO_SIDE_CHECK\n";
 		actions.render_mode_defines["cull_disabled"] = "#define DO_SIDE_CHECK\n";
+		actions.render_mode_defines["particle_trails"] = "#define USE_PARTICLE_TRAILS\n";
 
 		bool force_lambert = GLOBAL_GET("rendering/shading/overrides/force_lambert_over_burley");
 
@@ -721,7 +725,6 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 			actions.render_mode_defines["diffuse_burley"] = "#define DIFFUSE_BURLEY\n";
 		}
 
-		actions.render_mode_defines["diffuse_oren_nayar"] = "#define DIFFUSE_OREN_NAYAR\n";
 		actions.render_mode_defines["diffuse_lambert_wrap"] = "#define DIFFUSE_LAMBERT_WRAP\n";
 		actions.render_mode_defines["diffuse_toon"] = "#define DIFFUSE_TOON\n";
 
@@ -753,7 +756,7 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 		actions.default_filter = ShaderLanguage::FILTER_LINEAR_MIPMAP;
 		actions.default_repeat = ShaderLanguage::REPEAT_ENABLE;
 		actions.global_buffer_array_variable = "global_variables.data";
-		actions.instance_uniform_index_variable = "draw_call.instance_uniforms_ofs";
+		actions.instance_uniform_index_variable = "instances.data[instance_index].instance_uniforms_ofs";
 
 		compiler.initialize(actions);
 	}
@@ -770,22 +773,23 @@ void SceneShaderForwardClustered::init(RendererStorageRD *p_storage, const Strin
 		MaterialData *md = (MaterialData *)storage->material_get_data(default_material, RendererStorageRD::SHADER_TYPE_3D);
 		default_shader_rd = shader.version_get_shader(md->shader_data->version, SHADER_VERSION_COLOR_PASS);
 		default_shader_sdfgi_rd = shader.version_get_shader(md->shader_data->version, SHADER_VERSION_DEPTH_PASS_WITH_SDF);
+
+		default_material_shader_ptr = md->shader_data;
+		default_material_uniform_set = md->uniform_set;
 	}
 
 	{
 		overdraw_material_shader = storage->shader_allocate();
 		storage->shader_initialize(overdraw_material_shader);
-		storage->shader_set_code(overdraw_material_shader, "shader_type spatial;\nrender_mode blend_add,unshaded;\n void fragment() { ALBEDO=vec3(0.4,0.8,0.8); ALPHA=0.2; }");
+		// Use relatively low opacity so that more "layers" of overlapping objects can be distinguished.
+		storage->shader_set_code(overdraw_material_shader, "shader_type spatial;\nrender_mode blend_add,unshaded;\n void fragment() { ALBEDO=vec3(0.4,0.8,0.8); ALPHA=0.1; }");
 		overdraw_material = storage->material_allocate();
 		storage->material_initialize(overdraw_material);
 		storage->material_set_shader(overdraw_material, overdraw_material_shader);
 
-		wireframe_material_shader = storage->shader_allocate();
-		storage->shader_initialize(wireframe_material_shader);
-		storage->shader_set_code(wireframe_material_shader, "shader_type spatial;\nrender_mode wireframe,unshaded;\n void fragment() { ALBEDO=vec3(0.0,0.0,0.0); }");
-		wireframe_material = storage->material_allocate();
-		storage->material_initialize(wireframe_material);
-		storage->material_set_shader(wireframe_material, wireframe_material_shader);
+		MaterialData *md = (MaterialData *)storage->material_get_data(overdraw_material, RendererStorageRD::SHADER_TYPE_3D);
+		overdraw_material_shader_ptr = md->shader_data;
+		overdraw_material_uniform_set = md->uniform_set;
 	}
 
 	{

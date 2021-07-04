@@ -277,7 +277,7 @@ bool SceneTreeEditor::_add_nodes(Node *p_node, TreeItem *p_parent, bool p_scroll
 		}
 
 		Ref<Texture2D> icon_temp;
-		auto signal_temp = BUTTON_SIGNALS;
+		SceneTreeEditorButton signal_temp = BUTTON_SIGNALS;
 		if (num_connections >= 1 && num_groups >= 1) {
 			icon_temp = get_theme_icon("SignalsAndGroups", "EditorIcons");
 		} else if (num_connections >= 1) {
@@ -540,6 +540,10 @@ void SceneTreeEditor::_update_tree(bool p_scroll_to_selected) {
 		return;
 	}
 
+	if (tree->is_editing()) {
+		return;
+	}
+
 	updating_tree = true;
 	tree->clear();
 	if (get_scene_node()) {
@@ -665,7 +669,7 @@ void SceneTreeEditor::_notification(int p_what) {
 			get_tree()->connect("tree_process_mode_changed", callable_mp(this, &SceneTreeEditor::_tree_process_mode_changed));
 			get_tree()->connect("node_removed", callable_mp(this, &SceneTreeEditor::_node_removed));
 			get_tree()->connect("node_renamed", callable_mp(this, &SceneTreeEditor::_node_renamed));
-			get_tree()->connect("node_configuration_warning_changed", callable_mp(this, &SceneTreeEditor::_warning_changed));
+			get_tree()->connect("node_configuration_warning_changed", callable_mp(this, &SceneTreeEditor::_warning_changed), varray(), CONNECT_DEFERRED);
 
 			tree->connect("item_collapsed", callable_mp(this, &SceneTreeEditor::_cell_collapsed));
 
@@ -695,7 +699,7 @@ TreeItem *SceneTreeEditor::_find(TreeItem *p_node, const NodePath &p_path) {
 		return p_node;
 	}
 
-	TreeItem *children = p_node->get_children();
+	TreeItem *children = p_node->get_first_child();
 	while (children) {
 		TreeItem *n = _find(children, p_path);
 		if (n) {
@@ -879,7 +883,7 @@ void SceneTreeEditor::_update_selection(TreeItem *item) {
 		item->deselect(0);
 	}
 
-	TreeItem *c = item->get_children();
+	TreeItem *c = item->get_first_child();
 
 	while (c) {
 		_update_selection(c);
@@ -940,7 +944,7 @@ Variant SceneTreeEditor::get_drag_data_fw(const Point2 &p_point, Control *p_from
 
 		Node *n = get_node(np);
 		if (n) {
-			// Only allow selection if not part of an instanced scene.
+			// Only allow selection if not part of an instantiated scene.
 			if (!n->get_owner() || n->get_owner() == get_scene_node() || n->get_owner()->get_filename() == String()) {
 				selected.push_back(n);
 				icons.push_back(next->get_icon(0));
@@ -1102,6 +1106,9 @@ void SceneTreeEditor::_rmb_select(const Vector2 &p_pos) {
 	emit_signal("rmb_pressed", tree->get_screen_transform().xform(p_pos));
 }
 
+void SceneTreeEditor::update_warning() {
+	_warning_changed(nullptr);
+}
 void SceneTreeEditor::_warning_changed(Node *p_for_node) {
 	//should use a timer
 	update_timer->start();
@@ -1122,9 +1129,9 @@ void SceneTreeEditor::_bind_methods() {
 	ClassDB::bind_method("_rename_node", &SceneTreeEditor::_rename_node);
 	ClassDB::bind_method("_test_update_tree", &SceneTreeEditor::_test_update_tree);
 
-	ClassDB::bind_method(D_METHOD("get_drag_data_fw"), &SceneTreeEditor::get_drag_data_fw);
-	ClassDB::bind_method(D_METHOD("can_drop_data_fw"), &SceneTreeEditor::can_drop_data_fw);
-	ClassDB::bind_method(D_METHOD("drop_data_fw"), &SceneTreeEditor::drop_data_fw);
+	ClassDB::bind_method(D_METHOD("_get_drag_data_fw"), &SceneTreeEditor::get_drag_data_fw);
+	ClassDB::bind_method(D_METHOD("_can_drop_data_fw"), &SceneTreeEditor::can_drop_data_fw);
+	ClassDB::bind_method(D_METHOD("_drop_data_fw"), &SceneTreeEditor::drop_data_fw);
 
 	ClassDB::bind_method(D_METHOD("update_tree"), &SceneTreeEditor::update_tree);
 

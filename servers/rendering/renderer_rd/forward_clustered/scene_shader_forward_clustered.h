@@ -48,7 +48,7 @@ public:
 		SHADER_VERSION_DEPTH_PASS,
 		SHADER_VERSION_DEPTH_PASS_DP,
 		SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS,
-		SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS_AND_GIPROBE,
+		SHADER_VERSION_DEPTH_PASS_WITH_NORMAL_AND_ROUGHNESS_AND_VOXEL_GI,
 		SHADER_VERSION_DEPTH_PASS_WITH_MATERIAL,
 		SHADER_VERSION_DEPTH_PASS_WITH_SDF,
 		SHADER_VERSION_COLOR_PASS,
@@ -56,6 +56,7 @@ public:
 		SHADER_VERSION_COLOR_PASS_WITH_SEPARATE_SPECULAR,
 		SHADER_VERSION_LIGHTMAP_COLOR_PASS,
 		SHADER_VERSION_LIGHTMAP_COLOR_PASS_WITH_SEPARATE_SPECULAR,
+
 		SHADER_VERSION_MAX
 	};
 
@@ -126,6 +127,7 @@ public:
 		bool uses_discard;
 		bool uses_roughness;
 		bool uses_normal;
+		bool uses_particle_trails;
 
 		bool unshaded;
 		bool uses_vertex;
@@ -190,8 +192,6 @@ public:
 	RID default_material;
 	RID overdraw_material_shader;
 	RID overdraw_material;
-	RID wireframe_material_shader;
-	RID wireframe_material;
 	RID default_shader_rd;
 	RID default_shader_sdfgi_rd;
 
@@ -199,6 +199,12 @@ public:
 	RID default_vec4_xform_uniform_set;
 
 	RID shadow_sampler;
+
+	RID default_material_uniform_set;
+	ShaderData *default_material_shader_ptr = nullptr;
+
+	RID overdraw_material_uniform_set;
+	ShaderData *overdraw_material_shader_ptr = nullptr;
 
 	SceneShaderForwardClustered();
 	~SceneShaderForwardClustered();

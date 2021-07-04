@@ -97,7 +97,6 @@ public:
 		FEATURE_VIRTUAL_KEYBOARD,
 		FEATURE_CURSOR_SHAPE,
 		FEATURE_CUSTOM_CURSOR_SHAPE,
-		FEATURE_NATIVE_VIDEO,
 		FEATURE_NATIVE_DIALOG,
 		FEATURE_CONSOLE_WINDOW,
 		FEATURE_IME,
@@ -143,7 +142,8 @@ public:
 		MOUSE_MODE_VISIBLE,
 		MOUSE_MODE_HIDDEN,
 		MOUSE_MODE_CAPTURED,
-		MOUSE_MODE_CONFINED
+		MOUSE_MODE_CONFINED,
+		MOUSE_MODE_CONFINED_HIDDEN,
 	};
 
 	virtual void mouse_set_mode(MouseMode p_mode);
@@ -152,7 +152,7 @@ public:
 	virtual void mouse_warp_to_position(const Point2i &p_to);
 	virtual Point2i mouse_get_position() const;
 	virtual Point2i mouse_get_absolute_position() const;
-	virtual int mouse_get_button_state() const;
+	virtual MouseButton mouse_get_button_state() const;
 
 	virtual void clipboard_set(const String &p_text);
 	virtual String clipboard_get() const;
@@ -176,6 +176,9 @@ public:
 		return scale;
 	}
 	virtual bool screen_is_touchscreen(int p_screen = SCREEN_OF_MAIN_WINDOW) const;
+
+	// Keep the ScreenOrientation enum values in sync with the `display/window/handheld/orientation`
+	// project setting hint.
 	enum ScreenOrientation {
 		SCREEN_LANDSCAPE,
 		SCREEN_PORTRAIT,
@@ -323,13 +326,6 @@ public:
 	virtual bool get_swap_cancel_ok();
 
 	virtual void enable_for_stealing_focus(OS::ProcessID pid);
-
-	//plays video natively, in fullscreen, only implemented in mobile for now, likely not possible to implement on linux also.
-	virtual Error native_video_play(String p_path, float p_volume, String p_audio_track, String p_subtitle_track, int p_screen = SCREEN_OF_MAIN_WINDOW);
-	virtual bool native_video_is_playing() const;
-	virtual void native_video_pause();
-	virtual void native_video_unpause();
-	virtual void native_video_stop();
 
 	virtual Error dialog_show(String p_title, String p_description, Vector<String> p_buttons, const Callable &p_callback);
 	virtual Error dialog_input_text(String p_title, String p_description, String p_partial, const Callable &p_callback);

@@ -53,6 +53,7 @@ def get_flags():
         # in this platform. For the available networking methods, the browser
         # manages TLS.
         ("module_mbedtls_enabled", False),
+        ("vulkan", False),
     ]
 
 
@@ -175,7 +176,7 @@ def configure(env):
     # Program() output consists of multiple files, so specify suffixes manually at builder.
     env["PROGSUFFIX"] = ""
     env["LIBPREFIX"] = "lib"
-    env["LIBSUFFIX"] = ".bc"
+    env["LIBSUFFIX"] = ".a"
     env["LIBPREFIXES"] = ["$LIBPREFIX"]
     env["LIBSUFFIXES"] = ["$LIBSUFFIX"]
 
@@ -229,8 +230,8 @@ def configure(env):
     # Allow use to take control of swapping WebGL buffers.
     env.Append(LINKFLAGS=["-s", "OFFSCREEN_FRAMEBUFFER=1"])
 
-    # callMain for manual start.
-    env.Append(LINKFLAGS=["-s", "EXTRA_EXPORTED_RUNTIME_METHODS=['callMain','cwrap']"])
+    # callMain for manual start, cwrap for the mono version.
+    env.Append(LINKFLAGS=["-s", "EXPORTED_RUNTIME_METHODS=['callMain','cwrap']"])
 
     # Add code that allow exiting runtime.
     env.Append(LINKFLAGS=["-s", "EXIT_RUNTIME=1"])
@@ -239,6 +240,6 @@ def configure(env):
     env.Append(
         LINKFLAGS=[
             "-s",
-            "EXPORTED_FUNCTIONS=['_main', '_emscripten_webgl_get_current_context', '_emscripten_webgl_commit_frame', '_emscripten_webgl_create_context']",
+            "EXPORTED_FUNCTIONS=['_main', '_emscripten_webgl_get_current_context']",
         ]
     )

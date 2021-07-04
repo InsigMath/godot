@@ -32,14 +32,18 @@
 
 #include "core/input/input.h"
 #include "scene/resources/texture.h"
+#include "servers/display_server_headless.h"
 
 DisplayServer *DisplayServer::singleton = nullptr;
 DisplayServer::SwitchVSyncCallbackInThread DisplayServer::switch_vsync_function = nullptr;
 
 bool DisplayServer::hidpi_allowed = false;
 
-DisplayServer::DisplayServerCreate DisplayServer::server_create_functions[DisplayServer::MAX_SERVERS];
-int DisplayServer::server_create_count = 0;
+DisplayServer::DisplayServerCreate DisplayServer::server_create_functions[DisplayServer::MAX_SERVERS] = {
+	{ "headless", &DisplayServerHeadless::create_func, &DisplayServerHeadless::get_rendering_drivers_func }
+};
+
+int DisplayServer::server_create_count = 1;
 
 void DisplayServer::global_menu_add_item(const String &p_menu_root, const String &p_label, const Callable &p_callback, const Variant &p_tag) {
 	WARN_PRINT("Global menus not supported by this display server.");
@@ -144,8 +148,8 @@ Point2i DisplayServer::mouse_get_position() const {
 	ERR_FAIL_V_MSG(Point2i(), "Mouse is not supported by this display server.");
 }
 
-int DisplayServer::mouse_get_button_state() const {
-	ERR_FAIL_V_MSG(0, "Mouse is not supported by this display server.");
+MouseButton DisplayServer::mouse_get_button_state() const {
+	ERR_FAIL_V_MSG(MOUSE_BUTTON_NONE, "Mouse is not supported by this display server.");
 }
 
 void DisplayServer::clipboard_set(const String &p_text) {
@@ -251,27 +255,6 @@ bool DisplayServer::get_swap_cancel_ok() {
 }
 
 void DisplayServer::enable_for_stealing_focus(OS::ProcessID pid) {
-}
-
-//plays video natively, in fullscreen, only implemented in mobile for now, likely not possible to implement on linux also.
-Error DisplayServer::native_video_play(String p_path, float p_volume, String p_audio_track, String p_subtitle_track, int p_screen) {
-	ERR_FAIL_V_MSG(ERR_UNAVAILABLE, "Native video not supported by this display server.");
-}
-
-bool DisplayServer::native_video_is_playing() const {
-	return false;
-}
-
-void DisplayServer::native_video_pause() {
-	WARN_PRINT("Native video not supported by this display server.");
-}
-
-void DisplayServer::native_video_unpause() {
-	WARN_PRINT("Native video not supported by this display server.");
-}
-
-void DisplayServer::native_video_stop() {
-	WARN_PRINT("Native video not supported by this display server.");
 }
 
 Error DisplayServer::dialog_show(String p_title, String p_description, Vector<String> p_buttons, const Callable &p_callback) {
@@ -477,12 +460,6 @@ void DisplayServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("enable_for_stealing_focus", "process_id"), &DisplayServer::enable_for_stealing_focus);
 
-	ClassDB::bind_method(D_METHOD("native_video_play", "path", "volume", "audio_track", "subtitle_track", "screen"), &DisplayServer::native_video_play);
-	ClassDB::bind_method(D_METHOD("native_video_is_playing"), &DisplayServer::native_video_is_playing);
-	ClassDB::bind_method(D_METHOD("native_video_stop"), &DisplayServer::native_video_stop);
-	ClassDB::bind_method(D_METHOD("native_video_pause"), &DisplayServer::native_video_pause);
-	ClassDB::bind_method(D_METHOD("native_video_unpause"), &DisplayServer::native_video_unpause);
-
 	ClassDB::bind_method(D_METHOD("dialog_show", "title", "description", "buttons", "callback"), &DisplayServer::dialog_show);
 	ClassDB::bind_method(D_METHOD("dialog_input_text", "title", "description", "existing_text", "callback"), &DisplayServer::dialog_input_text);
 
@@ -518,7 +495,6 @@ void DisplayServer::_bind_methods() {
 	BIND_ENUM_CONSTANT(FEATURE_VIRTUAL_KEYBOARD);
 	BIND_ENUM_CONSTANT(FEATURE_CURSOR_SHAPE);
 	BIND_ENUM_CONSTANT(FEATURE_CUSTOM_CURSOR_SHAPE);
-	BIND_ENUM_CONSTANT(FEATURE_NATIVE_VIDEO);
 	BIND_ENUM_CONSTANT(FEATURE_NATIVE_DIALOG);
 	BIND_ENUM_CONSTANT(FEATURE_CONSOLE_WINDOW);
 	BIND_ENUM_CONSTANT(FEATURE_IME);
@@ -533,6 +509,7 @@ void DisplayServer::_bind_methods() {
 	BIND_ENUM_CONSTANT(MOUSE_MODE_HIDDEN);
 	BIND_ENUM_CONSTANT(MOUSE_MODE_CAPTURED);
 	BIND_ENUM_CONSTANT(MOUSE_MODE_CONFINED);
+	BIND_ENUM_CONSTANT(MOUSE_MODE_CONFINED_HIDDEN);
 
 	BIND_CONSTANT(SCREEN_OF_MAIN_WINDOW);
 	BIND_CONSTANT(MAIN_WINDOW_ID);
@@ -588,9 +565,11 @@ void DisplayServer::_bind_methods() {
 
 void DisplayServer::register_create_function(const char *p_name, CreateFunction p_function, GetRenderingDriversFunction p_get_drivers) {
 	ERR_FAIL_COND(server_create_count == MAX_SERVERS);
-	server_create_functions[server_create_count].name = p_name;
-	server_create_functions[server_create_count].create_function = p_function;
-	server_create_functions[server_create_count].get_rendering_drivers_function = p_get_drivers;
+	// Headless display server is always last
+	server_create_functions[server_create_count] = server_create_functions[server_create_count - 1];
+	server_create_functions[server_create_count - 1].name = p_name;
+	server_create_functions[server_create_count - 1].create_function = p_function;
+	server_create_functions[server_create_count - 1].get_rendering_drivers_function = p_get_drivers;
 	server_create_count++;
 }
 

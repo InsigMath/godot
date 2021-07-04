@@ -43,7 +43,7 @@ void Body2DSW::update_inertias() {
 	//update shapes and motions
 
 	switch (mode) {
-		case PhysicsServer2D::BODY_MODE_RIGID: {
+		case PhysicsServer2D::BODY_MODE_DYNAMIC: {
 			if (user_inertia) {
 				_inv_inertia = inertia > 0 ? (1.0 / inertia) : 0;
 				break;
@@ -87,7 +87,7 @@ void Body2DSW::update_inertias() {
 			_inv_inertia = 0;
 			_inv_mass = 0;
 		} break;
-		case PhysicsServer2D::BODY_MODE_CHARACTER: {
+		case PhysicsServer2D::BODY_MODE_DYNAMIC_LOCKED: {
 			_inv_inertia = 0;
 			_inv_mass = 1.0 / mass;
 
@@ -104,31 +104,17 @@ void Body2DSW::set_active(bool p_active) {
 	}
 
 	active = p_active;
-	if (!p_active) {
-		if (get_space()) {
-			get_space()->body_remove_from_active_list(&active_list);
-		}
-	} else {
+
+	if (active) {
 		if (mode == PhysicsServer2D::BODY_MODE_STATIC) {
-			return; //static bodies can't become active
-		}
-		if (get_space()) {
+			// Static bodies can't be active.
+			active = false;
+		} else if (get_space()) {
 			get_space()->body_add_to_active_list(&active_list);
 		}
-
-		//still_time=0;
+	} else if (get_space()) {
+		get_space()->body_remove_from_active_list(&active_list);
 	}
-	/*
-	if (!space)
-		return;
-
-	for(int i=0;i<get_shape_count();i++) {
-		Shape &s=shapes[i];
-		if (s.bpid>0) {
-			get_space()->get_broadphase()->set_active(s.bpid,active);
-		}
-	}
-*/
 }
 
 void Body2DSW::set_param(PhysicsServer2D::BodyParameter p_param, real_t p_value) {
@@ -218,14 +204,14 @@ void Body2DSW::set_mode(PhysicsServer2D::BodyMode p_mode) {
 				first_time_kinematic = true;
 			}
 		} break;
-		case PhysicsServer2D::BODY_MODE_RIGID: {
+		case PhysicsServer2D::BODY_MODE_DYNAMIC: {
 			_inv_mass = mass > 0 ? (1.0 / mass) : 0;
 			_inv_inertia = inertia > 0 ? (1.0 / inertia) : 0;
 			_set_static(false);
 			set_active(true);
 
 		} break;
-		case PhysicsServer2D::BODY_MODE_CHARACTER: {
+		case PhysicsServer2D::BODY_MODE_DYNAMIC_LOCKED: {
 			_inv_mass = mass > 0 ? (1.0 / mass) : 0;
 			_inv_inertia = 0;
 			_set_static(false);
@@ -233,7 +219,7 @@ void Body2DSW::set_mode(PhysicsServer2D::BodyMode p_mode) {
 			angular_velocity = 0;
 		} break;
 	}
-	if (p_mode == PhysicsServer2D::BODY_MODE_RIGID && _inv_inertia == 0) {
+	if (p_mode == PhysicsServer2D::BODY_MODE_DYNAMIC && _inv_inertia == 0) {
 		_update_inertia();
 	}
 	/*
@@ -281,25 +267,16 @@ void Body2DSW::set_state(PhysicsServer2D::BodyState p_state, const Variant &p_va
 
 		} break;
 		case PhysicsServer2D::BODY_STATE_LINEAR_VELOCITY: {
-			/*
-			if (mode==PhysicsServer2D::BODY_MODE_STATIC)
-				break;
-			*/
 			linear_velocity = p_variant;
 			wakeup();
 
 		} break;
 		case PhysicsServer2D::BODY_STATE_ANGULAR_VELOCITY: {
-			/*
-			if (mode!=PhysicsServer2D::BODY_MODE_RIGID)
-				break;
-			*/
 			angular_velocity = p_variant;
 			wakeup();
 
 		} break;
 		case PhysicsServer2D::BODY_STATE_SLEEPING: {
-			//?
 			if (mode == PhysicsServer2D::BODY_MODE_STATIC || mode == PhysicsServer2D::BODY_MODE_KINEMATIC) {
 				break;
 			}
@@ -318,7 +295,7 @@ void Body2DSW::set_state(PhysicsServer2D::BodyState p_state, const Variant &p_va
 		} break;
 		case PhysicsServer2D::BODY_STATE_CAN_SLEEP: {
 			can_sleep = p_variant;
-			if (mode == PhysicsServer2D::BODY_MODE_RIGID && !active && !can_sleep) {
+			if (mode == PhysicsServer2D::BODY_MODE_DYNAMIC && !active && !can_sleep) {
 				set_active(true);
 			}
 
@@ -370,13 +347,6 @@ void Body2DSW::set_space(Space2DSW *p_space) {
 		if (active) {
 			get_space()->body_add_to_active_list(&active_list);
 		}
-		/*
-		_update_queries();
-		if (is_active()) {
-			active=false;
-			set_active(true);
-		}
-		*/
 	}
 
 	first_integration = false;
@@ -572,7 +542,7 @@ void Body2DSW::wakeup_neighbours() {
 				continue;
 			}
 			Body2DSW *b = n[i];
-			if (b->mode != PhysicsServer2D::BODY_MODE_RIGID) {
+			if (b->mode != PhysicsServer2D::BODY_MODE_DYNAMIC) {
 				continue;
 			}
 
@@ -609,9 +579,7 @@ void Body2DSW::call_queries() {
 
 bool Body2DSW::sleep_test(real_t p_step) {
 	if (mode == PhysicsServer2D::BODY_MODE_STATIC || mode == PhysicsServer2D::BODY_MODE_KINEMATIC) {
-		return true; //
-	} else if (mode == PhysicsServer2D::BODY_MODE_CHARACTER) {
-		return !active; // characters and kinematic bodies don't sleep unless asked to sleep
+		return true;
 	} else if (!can_sleep) {
 		return false;
 	}
@@ -644,7 +612,7 @@ Body2DSW::Body2DSW() :
 		active_list(this),
 		inertia_update_list(this),
 		direct_state_query_list(this) {
-	mode = PhysicsServer2D::BODY_MODE_RIGID;
+	mode = PhysicsServer2D::BODY_MODE_DYNAMIC;
 	active = true;
 	angular_velocity = 0;
 	biased_angular_velocity = 0;

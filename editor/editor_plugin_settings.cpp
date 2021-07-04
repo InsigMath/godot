@@ -32,7 +32,7 @@
 
 #include "core/config/project_settings.h"
 #include "core/io/config_file.h"
-#include "core/os/file_access.h"
+#include "core/io/file_access.h"
 #include "core/os/main_loop.h"
 #include "editor_node.h"
 #include "editor_scale.h"
@@ -57,7 +57,7 @@ void EditorPluginSettings::update_plugins() {
 
 	for (int i = 0; i < plugins.size(); i++) {
 		Ref<ConfigFile> cf;
-		cf.instance();
+		cf.instantiate();
 		const String path = plugins[i];
 
 		Error err2 = cf->load(path);
@@ -212,14 +212,19 @@ EditorPluginSettings::EditorPluginSettings() {
 	plugin_list->set_column_title(3, TTR("Status:"));
 	plugin_list->set_column_title(4, TTR("Edit:"));
 	plugin_list->set_column_expand(0, true);
+	plugin_list->set_column_clip_content(0, true);
 	plugin_list->set_column_expand(1, false);
+	plugin_list->set_column_clip_content(1, true);
 	plugin_list->set_column_expand(2, false);
+	plugin_list->set_column_clip_content(2, true);
 	plugin_list->set_column_expand(3, false);
+	plugin_list->set_column_clip_content(3, true);
 	plugin_list->set_column_expand(4, false);
-	plugin_list->set_column_min_width(1, 100 * EDSCALE);
-	plugin_list->set_column_min_width(2, 250 * EDSCALE);
-	plugin_list->set_column_min_width(3, 80 * EDSCALE);
-	plugin_list->set_column_min_width(4, 40 * EDSCALE);
+	plugin_list->set_column_clip_content(4, true);
+	plugin_list->set_column_custom_minimum_width(1, 100 * EDSCALE);
+	plugin_list->set_column_custom_minimum_width(2, 250 * EDSCALE);
+	plugin_list->set_column_custom_minimum_width(3, 80 * EDSCALE);
+	plugin_list->set_column_custom_minimum_width(4, 40 * EDSCALE);
 	plugin_list->set_hide_root(true);
 	plugin_list->connect("item_edited", callable_mp(this, &EditorPluginSettings::_plugin_activity_changed));
 

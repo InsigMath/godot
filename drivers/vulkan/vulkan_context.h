@@ -54,6 +54,14 @@ public:
 		String supported_operations_desc() const;
 	};
 
+	struct MultiviewCapabilities {
+		bool is_supported;
+		bool geometry_shader_is_supported;
+		bool tessellation_shader_is_supported;
+		uint32_t max_view_count;
+		uint32_t max_instance_count;
+	};
+
 private:
 	enum {
 		MAX_EXTENSIONS = 128,
@@ -62,7 +70,6 @@ private:
 	};
 
 	VkInstance inst = VK_NULL_HANDLE;
-	VkSurfaceKHR surface = VK_NULL_HANDLE;
 	VkPhysicalDevice gpu = VK_NULL_HANDLE;
 	VkPhysicalDeviceProperties gpu_props;
 	uint32_t queue_family_count = 0;
@@ -75,6 +82,7 @@ private:
 	uint32_t vulkan_major = 1;
 	uint32_t vulkan_minor = 0;
 	SubgroupCapabilities subgroup_capabilities;
+	MultiviewCapabilities multiview_capabilities;
 
 	String device_vendor;
 	String device_name;
@@ -92,7 +100,6 @@ private:
 	VkQueue present_queue = VK_NULL_HANDLE;
 	VkColorSpaceKHR color_space;
 	VkFormat format;
-	VkSemaphore image_acquired_semaphores[FRAME_LAG];
 	VkSemaphore draw_complete_semaphores[FRAME_LAG];
 	VkSemaphore image_ownership_semaphores[FRAME_LAG];
 	int frame_index = 0;
@@ -112,6 +119,8 @@ private:
 		VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 		SwapchainImageResources *swapchain_image_resources = VK_NULL_HANDLE;
 		VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+		VkSemaphore image_acquired_semaphores[FRAME_LAG];
+		bool semaphore_acquired = false;
 		uint32_t current_buffer = 0;
 		int width = 0;
 		int height = 0;
@@ -199,7 +208,7 @@ private:
 
 	Error _create_physical_device();
 
-	Error _initialize_queues(VkSurfaceKHR surface);
+	Error _initialize_queues(VkSurfaceKHR p_surface);
 
 	Error _create_device();
 
@@ -227,6 +236,7 @@ public:
 	uint32_t get_vulkan_major() const { return vulkan_major; };
 	uint32_t get_vulkan_minor() const { return vulkan_minor; };
 	SubgroupCapabilities get_subgroup_capabilities() const { return subgroup_capabilities; };
+	MultiviewCapabilities get_multiview_capabilities() const { return multiview_capabilities; };
 
 	VkDevice get_device();
 	VkPhysicalDevice get_physical_device();

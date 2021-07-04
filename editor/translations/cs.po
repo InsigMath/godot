@@ -25,12 +25,13 @@
 # kubajz22 <til.jakubesko@seznam.cz>, 2020.
 # Václav Blažej <vaclavblazej@seznam.cz>, 2020, 2021.
 # ProfJack <profjackcz@gmail.com>, 2021.
+# swifterik <blaha.j502@gmail.com>, 2021.
 msgid ""
 msgstr ""
 "Project-Id-Version: Godot Engine editor\n"
 "POT-Creation-Date: \n"
-"PO-Revision-Date: 2021-04-21 07:35+0000\n"
-"Last-Translator: Zbyněk <zbynek.fiala@gmail.com>\n"
+"PO-Revision-Date: 2021-06-25 02:57+0000\n"
+"Last-Translator: Vojtěch Šamla <auzkok@seznam.cz>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/godot-engine/godot/"
 "cs/>\n"
 "Language: cs\n"
@@ -38,7 +39,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
-"X-Generator: Weblate 4.7-dev\n"
+"X-Generator: Weblate 4.7.1-dev\n"
 
 #: core/math/expression.cpp modules/gdscript/gdscript_functions.cpp
 #: modules/visual_script/visual_script_builtin_funcs.cpp
@@ -1133,6 +1134,10 @@ msgstr "Změnit hodnotu slovníku"
 #: editor/editor_about.cpp
 msgid "Thanks from the Godot community!"
 msgstr "Děkujeme za komunitu Godotu!"
+
+#: editor/editor_about.cpp editor/editor_node.cpp editor/project_manager.cpp
+msgid "Click to copy."
+msgstr ""
 
 #: editor/editor_about.cpp
 msgid "Godot Engine contributors"
@@ -2548,11 +2553,13 @@ msgstr "Nelze načíst skript rozšíření z cesty: '%s'."
 
 #: editor/editor_node.cpp
 msgid ""
-"Unable to load addon script from path: '%s' There seems to be an error in "
-"the code, please check the syntax."
+"Unable to load addon script from path: '%s'. This might be due to a code "
+"error in that script.\n"
+"Disabling the addon at '%s' to prevent further errors."
 msgstr ""
 "Nelze načíst skript rozšíření z cesty: '%s'. Zdá se, že se v kódu nachází "
-"chyba. Prosím, zkontrolujte syntax."
+"chyba.\n"
+"Deaktivujte rozšíření '%s' abyste předešli dalším chybám."
 
 #: editor/editor_node.cpp
 msgid ""
@@ -2990,6 +2997,10 @@ msgstr "Komunita"
 #: editor/editor_node.cpp
 msgid "About"
 msgstr "O aplikaci"
+
+#: editor/editor_node.cpp
+msgid "Support Godot Development"
+msgstr "Podpořte projekt Godot"
 
 #: editor/editor_node.cpp
 msgid "Play the project."
@@ -5178,14 +5189,12 @@ msgid "Assets ZIP File"
 msgstr "ZIP soubor asetů"
 
 #: editor/plugins/baked_lightmap_editor_plugin.cpp
-#, fuzzy
 msgid ""
 "Can't determine a save path for lightmap images.\n"
 "Save your scene and try again."
 msgstr ""
 "Nelze určit cestu pro uložení obrázků světelné mapy.\n"
-"Uložte scénu (obrázky se uloží do stejného adresáře) nebo vyberte cestu pro "
-"uložení z vlastnosti BakedLightmap."
+"Uložte scénu a zkuste to znovu."
 
 #: editor/plugins/baked_lightmap_editor_plugin.cpp
 msgid ""
@@ -5218,7 +5227,8 @@ msgstr ""
 msgid ""
 "Godot editor was built without ray tracing support, lightmaps can't be baked."
 msgstr ""
-"Godot byl sestaven bez podpory ray tracingu, světelné mapy nelze zapéct."
+"Editor Godot byl sestaven bez podpory ray tracingu, světelné mapy nelze "
+"zapéct."
 
 #: editor/plugins/baked_lightmap_editor_plugin.cpp
 msgid "Bake Lightmaps"
@@ -10099,7 +10109,7 @@ msgstr "Tlačítko myši"
 
 #: editor/project_settings_editor.cpp
 msgid ""
-"Invalid action name. it cannot be empty nor contain '/', ':', '=', '\\' or "
+"Invalid action name. It cannot be empty nor contain '/', ':', '=', '\\' or "
 "'\"'"
 msgstr ""
 "Neplatné jméno akce. Nesmí být prázdné nebo obsahovat '/', ':', '=', '\\' "
@@ -11627,7 +11637,6 @@ msgid "Post processing"
 msgstr "Následné zpracování"
 
 #: modules/lightmapper_cpu/lightmapper_cpu.cpp
-#, fuzzy
 msgid "Plotting lightmaps"
 msgstr "Vykreslování světelných map"
 
@@ -12148,10 +12157,22 @@ msgstr ""
 "z nabídky Projekt."
 
 #: platform/android/export/export.cpp
+msgid ""
+"Either Debug Keystore, Debug User AND Debug Password settings must be "
+"configured OR none of them."
+msgstr ""
+
+#: platform/android/export/export.cpp
 msgid "Debug keystore not configured in the Editor Settings nor in the preset."
 msgstr ""
 "Úložiště klíčů k ladění není nakonfigurováno v Nastavení editoru nebo v "
 "export profilu."
+
+#: platform/android/export/export.cpp
+msgid ""
+"Either Release Keystore, Release User AND Release Password settings must be "
+"configured OR none of them."
+msgstr ""
 
 #: platform/android/export/export.cpp
 msgid "Release keystore incorrectly configured in the export preset."

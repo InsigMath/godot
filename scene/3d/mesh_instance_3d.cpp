@@ -271,6 +271,41 @@ void MeshInstance3D::create_convex_collision() {
 	}
 }
 
+Node *MeshInstance3D::create_multiple_convex_collisions_node() {
+	if (mesh.is_null()) {
+		return nullptr;
+	}
+
+	Vector<Ref<Shape3D>> shapes = mesh->convex_decompose();
+	if (!shapes.size()) {
+		return nullptr;
+	}
+
+	StaticBody3D *static_body = memnew(StaticBody3D);
+	for (int i = 0; i < shapes.size(); i++) {
+		CollisionShape3D *cshape = memnew(CollisionShape3D);
+		cshape->set_shape(shapes[i]);
+		static_body->add_child(cshape);
+	}
+	return static_body;
+}
+
+void MeshInstance3D::create_multiple_convex_collisions() {
+	StaticBody3D *static_body = Object::cast_to<StaticBody3D>(create_multiple_convex_collisions_node());
+	ERR_FAIL_COND(!static_body);
+	static_body->set_name(String(get_name()) + "_col");
+
+	add_child(static_body);
+	if (get_owner()) {
+		static_body->set_owner(get_owner());
+		int count = static_body->get_child_count();
+		for (int i = 0; i < count; i++) {
+			CollisionShape3D *cshape = Object::cast_to<CollisionShape3D>(static_body->get_child(i));
+			cshape->set_owner(get_owner());
+		}
+	}
+}
+
 void MeshInstance3D::_notification(int p_what) {
 	if (p_what == NOTIFICATION_ENTER_TREE) {
 		_resolve_skeleton_path();
@@ -321,6 +356,7 @@ Ref<Material> MeshInstance3D::get_active_material(int p_surface) const {
 void MeshInstance3D::_mesh_changed() {
 	ERR_FAIL_COND(mesh.is_null());
 	surface_override_materials.resize(mesh->get_surface_count());
+	update_gizmo();
 }
 
 void MeshInstance3D::create_debug_tangents() {
@@ -369,14 +405,14 @@ void MeshInstance3D::create_debug_tangents() {
 
 	if (lines.size()) {
 		Ref<StandardMaterial3D> sm;
-		sm.instance();
+		sm.instantiate();
 
 		sm->set_shading_mode(StandardMaterial3D::SHADING_MODE_UNSHADED);
 		sm->set_flag(StandardMaterial3D::FLAG_SRGB_VERTEX_COLOR, true);
 		sm->set_flag(StandardMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
 
 		Ref<ArrayMesh> am;
-		am.instance();
+		am.instantiate();
 		Array a;
 		a.resize(Mesh::ARRAY_MAX);
 		a[Mesh::ARRAY_VERTEX] = lines;
@@ -391,7 +427,7 @@ void MeshInstance3D::create_debug_tangents() {
 		add_child(mi);
 #ifdef TOOLS_ENABLED
 
-		if (this == get_tree()->get_edited_scene_root()) {
+		if (is_inside_tree() && this == get_tree()->get_edited_scene_root()) {
 			mi->set_owner(this);
 		} else {
 			mi->set_owner(get_owner());
@@ -417,6 +453,8 @@ void MeshInstance3D::_bind_methods() {
 	ClassDB::set_method_flags("MeshInstance3D", "create_trimesh_collision", METHOD_FLAGS_DEFAULT);
 	ClassDB::bind_method(D_METHOD("create_convex_collision"), &MeshInstance3D::create_convex_collision);
 	ClassDB::set_method_flags("MeshInstance3D", "create_convex_collision", METHOD_FLAGS_DEFAULT);
+	ClassDB::bind_method(D_METHOD("create_multiple_convex_collisions"), &MeshInstance3D::create_multiple_convex_collisions);
+	ClassDB::set_method_flags("MeshInstance3D", "create_multiple_convex_collisions", METHOD_FLAGS_DEFAULT);
 
 	ClassDB::bind_method(D_METHOD("create_debug_tangents"), &MeshInstance3D::create_debug_tangents);
 	ClassDB::set_method_flags("MeshInstance3D", "create_debug_tangents", METHOD_FLAGS_DEFAULT | METHOD_FLAG_EDITOR);

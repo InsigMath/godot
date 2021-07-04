@@ -52,7 +52,7 @@ void GroupDialog::_group_selected() {
 	selected_group = groups->get_selected()->get_text(0);
 	_load_nodes(scene_tree->get_edited_scene_root());
 
-	group_empty->set_visible(!remove_node_root->get_children());
+	group_empty->set_visible(!remove_node_root->get_first_child());
 }
 
 void GroupDialog::_load_nodes(Node *p_current) {
@@ -217,7 +217,7 @@ void GroupDialog::_group_renamed() {
 	}
 
 	const String name = renamed_group->get_text(0).strip_edges();
-	for (TreeItem *E = groups_root->get_children(); E; E = E->get_next()) {
+	for (TreeItem *E = groups_root->get_first_child(); E; E = E->get_next()) {
 		if (E != renamed_group && E->get_text(0) == name) {
 			renamed_group->set_text(0, selected_group);
 			error->set_text(TTR("Group name already exists."));
@@ -274,7 +274,7 @@ void GroupDialog::_rename_group_item(const String &p_old_name, const String &p_n
 
 	selected_group = p_new_name;
 
-	for (TreeItem *E = groups_root->get_children(); E; E = E->get_next()) {
+	for (TreeItem *E = groups_root->get_first_child(); E; E = E->get_next()) {
 		if (E->get_text(0) == p_old_name) {
 			E->set_text(0, p_new_name);
 			return;
@@ -351,7 +351,7 @@ void GroupDialog::_delete_group_item(const String &p_name) {
 		selected_group = "";
 	}
 
-	for (TreeItem *E = groups_root->get_children(); E; E = E->get_next()) {
+	for (TreeItem *E = groups_root->get_first_child(); E; E = E->get_next()) {
 		if (E->get_text(0) == p_name) {
 			groups_root->remove_child(E);
 			return;
@@ -446,7 +446,7 @@ GroupDialog::GroupDialog() {
 	add_group_text = memnew(LineEdit);
 	chbc->add_child(add_group_text);
 	add_group_text->set_h_size_flags(Control::SIZE_EXPAND_FILL);
-	add_group_text->connect("text_entered", callable_mp(this, &GroupDialog::_add_group_pressed));
+	add_group_text->connect("text_submitted", callable_mp(this, &GroupDialog::_add_group_pressed));
 
 	Button *add_group_button = memnew(Button);
 	add_group_button->set_text(TTR("Add"));
@@ -689,7 +689,7 @@ GroupsEditor::GroupsEditor() {
 	group_name = memnew(LineEdit);
 	group_name->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	hbc->add_child(group_name);
-	group_name->connect("text_entered", callable_mp(this, &GroupsEditor::_add_group));
+	group_name->connect("text_submitted", callable_mp(this, &GroupsEditor::_add_group));
 
 	add = memnew(Button);
 	add->set_text(TTR("Add"));
