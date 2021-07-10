@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  vulkan_context_iphone.mm                                             */
+/*  input_event_editor_plugin.h                                          */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,28 +28,52 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "vulkan_context_iphone.h"
-#include <vulkan/vulkan_ios.h>
+#ifndef INPUT_EVENT_EDITOR_PLUGIN_H
+#define INPUT_EVENT_EDITOR_PLUGIN_H
 
-const char *VulkanContextIPhone::_get_platform_surface_extension() const {
-	return VK_MVK_IOS_SURFACE_EXTENSION_NAME;
-}
+#include "editor/action_map_editor.h"
+#include "editor/editor_inspector.h"
+#include "editor/editor_node.h"
 
-Error VulkanContextIPhone::window_create(DisplayServer::WindowID p_window_id, DisplayServer::VSyncMode p_vsync_mode, CALayer *p_metal_layer, int p_width, int p_height) {
-	VkIOSSurfaceCreateInfoMVK createInfo;
-	createInfo.sType = VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK;
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.pView = (__bridge const void *)p_metal_layer;
+class InputEventConfigContainer : public HBoxContainer {
+	GDCLASS(InputEventConfigContainer, HBoxContainer);
 
-	VkSurfaceKHR surface;
-	VkResult err =
-			vkCreateIOSSurfaceMVK(_get_instance(), &createInfo, nullptr, &surface);
-	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
+	Label *input_event_text;
+	Button *open_config_button;
 
-	return _window_create(p_window_id, p_vsync_mode, surface, p_width, p_height);
-}
+	Ref<InputEvent> input_event;
+	InputEventConfigurationDialog *config_dialog;
 
-VulkanContextIPhone::VulkanContextIPhone() {}
+	void _config_dialog_confirmed();
+	void _configure_pressed();
 
-VulkanContextIPhone::~VulkanContextIPhone() {}
+	void _event_changed();
+
+protected:
+	static void _bind_methods();
+
+public:
+	virtual Size2 get_minimum_size() const override;
+	void set_event(const Ref<InputEvent> &p_event);
+
+	InputEventConfigContainer();
+};
+
+class EditorInspectorPluginInputEvent : public EditorInspectorPlugin {
+	GDCLASS(EditorInspectorPluginInputEvent, EditorInspectorPlugin);
+
+public:
+	virtual bool can_handle(Object *p_object) override;
+	virtual void parse_begin(Object *p_object) override;
+};
+
+class InputEventEditorPlugin : public EditorPlugin {
+	GDCLASS(InputEventEditorPlugin, EditorPlugin);
+
+public:
+	virtual String get_name() const override { return "InputEvent"; }
+
+	InputEventEditorPlugin(EditorNode *p_node);
+};
+
+#endif // INPUT_EVENT_EDITOR_PLUGIN_H
